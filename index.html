@@ -168,12 +168,37 @@ select option { background:#1a1a24; }
 
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px">
     <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--muted2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.08em">👤 Acceso Invitado</div>
-    <div class="field" style="margin-bottom:10px">
-      <input type="text" id="login-guest-name" placeholder="Tu nombre"
-        maxlength="22" style="font-size:15px"
-        onkeydown="if(event.key==='Enter')document.getElementById('login-guest-code').focus()">
+    <div class="row2" style="margin-bottom:10px">
+      <div class="field">
+        <label>Tu nombre <span style="color:var(--red)">*</span></label>
+        <input type="text" id="login-guest-name" placeholder="Ej: Martina" maxlength="22"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-guest-alias').focus()">
+      </div>
+      <div class="field">
+        <label>Alias CVU <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+        <input type="text" id="login-guest-alias" placeholder="mi.alias" maxlength="40"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-guest-code').focus()">
+      </div>
+    </div>
+    <div class="row2" style="margin-bottom:10px">
+      <div class="field">
+        <label>Dieta</label>
+        <select id="login-guest-diet">
+          <option value="meat">🥩 Come carne</option>
+          <option value="veg">🥗 Vegetariano/a</option>
+          <option value="none">🚫 No come (solo toma)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Alcohol</label>
+        <select id="login-guest-alc">
+          <option value="yes">🍺 Toma alcohol</option>
+          <option value="no">🧃 No toma alcohol</option>
+        </select>
+      </div>
     </div>
     <div class="field" style="margin-bottom:10px">
+      <label>Código de acceso <span style="color:var(--red)">*</span></label>
       <input type="text" id="login-guest-code" placeholder="Código de acceso"
         maxlength="12" style="text-transform:uppercase;letter-spacing:3px;font-size:18px;font-family:'Syne',sans-serif;font-weight:700;text-align:center"
         oninput="this.value=this.value.toUpperCase()"
@@ -1409,6 +1434,20 @@ function startGlobalSync() {
     const maxId = remoteEvents.reduce((m,e)=>Math.max(m,e.id),0);
     if(maxId >= db.nextEventId) db.nextEventId = maxId + 1;
     save();
+    // If guest: auto-add to any new events
+    if(currentRole === 'guest' && currentGuestName) {
+      const galias = localStorage.getItem('spliteat_guest_alias') || '';
+      const gdiet  = localStorage.getItem('spliteat_guest_diet')  || 'meat';
+      const galc   = localStorage.getItem('spliteat_guest_alc')   || 'yes';
+      db.events.forEach(ev => {
+        const already = ev.friends.find(f=>f.name.toLowerCase()===currentGuestName.toLowerCase());
+        if(!already) {
+          ev.friends.push({id:ev.nextFriendId++, name:currentGuestName, alias:galias, diet:gdiet, alcohol:galc, isGuest:true});
+          pushEvent(ev);
+        }
+      });
+      save();
+    }
     const onHome = document.getElementById('view-home').classList.contains('active');
     if(onHome) { _renderHomeInner(); setSyncDot('synced'); return; }
     if(currentEventId) {
@@ -1444,7 +1483,28 @@ function bootApp() {
     currentRole = saved;
     if(currentRole === 'guest') {
       currentGuestName = localStorage.getItem('spliteat_guest_name') || null;
-      syncAllEvents().then(()=>{ startGlobalSync(); _renderHomeInner(); applyRole(); });
+      // Re-apply profile in case events changed since last session
+      const _galias = localStorage.getItem('spliteat_guest_alias') || '';
+      const _gdiet  = localStorage.getItem('spliteat_guest_diet')  || 'meat';
+      const _galc   = localStorage.getItem('spliteat_guest_alc')   || 'yes';
+      syncAllEvents().then(async ()=>{
+        if(currentGuestName) {
+          let anyAdded = false;
+          for(const ev of db.events) {
+            const already = ev.friends.find(f=>f.name.toLowerCase()===currentGuestName.toLowerCase());
+            if(!already) {
+              ev.friends.push({id:ev.nextFriendId++, name:currentGuestName, alias:_galias, diet:_gdiet, alcohol:_galc, isGuest:true});
+              anyAdded = true;
+              await pushEvent(ev);
+            }
+          }
+          if(anyAdded) save();
+        }
+        startGlobalSync();
+        showView('view-home');
+        _renderHomeInner();
+        applyRole();
+      });
     }
     else { startGlobalSync(); showView('view-home'); renderHome(); applyRole(); }
   } else {
