@@ -556,6 +556,7 @@ function addFriend() {
   const name=document.getElementById('f-name').value.trim();
   if(!name){ showToast('Ingresá un nombre'); return; }
   const ev=getEvent(currentEventId);
+  if(!ev){ showToast('Error: no hay evento activo'); return; }
   const alias=document.getElementById('f-alias').value.trim();
   ev.friends.push({id:ev.nextFriendId++,name,alias,diet:document.getElementById('f-diet').value,alcohol:document.getElementById('f-alc').value});
   document.getElementById('f-name').value=''; document.getElementById('f-alias').value='';
