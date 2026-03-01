@@ -6,6 +6,8 @@
 <title>SplitEat — Dividí la cuenta</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 :root {
   --bg: #0a0a0f; --surface: #13131a; --surface2: #1a1a24;
@@ -23,6 +25,7 @@ body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index
 ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
 .view { display:none; min-height:100vh; padding-bottom:80px; }
 .view.active { display:block; animation:fadeUp .25s ease; }
+#view-login.active { display:flex; }
 @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
 .top-bar { padding:20px 18px 14px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:100; backdrop-filter:blur(12px); }
 .back-btn { width:34px; height:34px; border-radius:var(--r-sm); border:1px solid var(--border2); background:var(--surface); color:var(--text); cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -127,6 +130,12 @@ select option { background:#1a1a24; }
 .empty-text { font-size:14px; line-height:1.5; }
 .toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--accent); color:#0a0a0f; padding:10px 20px; border-radius:20px; font-family:'Syne',sans-serif; font-size:13px; font-weight:700; z-index:9000; opacity:0; pointer-events:none; white-space:nowrap; transition:all .3s; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.sync-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-left:6px; vertical-align:middle; flex-shrink:0; }
+.sync-dot.synced  { background:#50f0a0; box-shadow:0 0 6px #50f0a0; }
+.sync-dot.saving  { background:#f0d050; animation:pulse .8s infinite; }
+.sync-dot.error   { background:#f05050; }
+.sync-dot.offline { background:#6868a0; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 .bottom-nav { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px; background:rgba(10,10,15,.95); border-top:1px solid var(--border); display:flex; padding:8px 0 16px; backdrop-filter:blur(16px); z-index:200; }
 .nav-btn { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 0; border:none; background:none; color:var(--muted); cursor:pointer; transition:color .2s; font-size:10px; font-family:'Syne',sans-serif; font-weight:600; letter-spacing:.04em; }
 .nav-btn.active { color:var(--accent); }
@@ -135,18 +144,59 @@ select option { background:#1a1a24; }
 </head>
 <body>
 
+<!-- ══ LOGIN ══ -->
+<div class="view active" id="view-login" style="flex-direction:column;justify-content:center;min-height:100vh;padding:32px 24px">
+  <div style="text-align:center;margin-bottom:36px">
+    <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800;letter-spacing:-1.5px">Split<span style="color:var(--accent)">Eat</span> <span style="font-size:28px">🍽️</span></div>
+    <div style="font-size:13px;color:var(--muted2);margin-top:6px">Dividí la cuenta entre amigos</div>
+  </div>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px">
+    <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--accent);margin-bottom:14px;text-transform:uppercase;letter-spacing:.08em">👑 Acceso Admin</div>
+    <div class="field" style="margin-bottom:10px">
+      <input type="password" id="login-admin-pwd" placeholder="Contraseña de administrador"
+        onkeydown="if(event.key==='Enter')loginAdmin()">
+    </div>
+    <button class="btn btn-primary" onclick="loginAdmin()">Entrar como Admin</button>
+  </div>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px">
+    <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--muted2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.08em">👤 Acceso Invitado</div>
+    <div class="field" style="margin-bottom:10px">
+      <input type="text" id="login-guest-code" placeholder="Código de acceso"
+        maxlength="12" style="text-transform:uppercase;letter-spacing:3px;font-size:18px;font-family:'Syne',sans-serif;font-weight:700;text-align:center"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')loginGuest()">
+    </div>
+    <button class="btn btn-ghost" onclick="loginGuest()">Entrar con código</button>
+  </div>
+
+  <div id="login-error" style="display:none;margin-top:14px;text-align:center;font-size:13px;color:var(--red);padding:10px;background:var(--red-dim);border-radius:var(--r-sm)"></div>
+</div>
+
 <!-- ══ HOME ══ -->
-<div class="view active" id="view-home">
+<div class="view" id="view-home">
   <div class="home-header">
-    <div class="home-logo">Split<span>Eat</span> <span style="font-size:22px">🍽️</span></div>
-    <div class="home-sub">Dividí la cuenta entre amigos</div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="home-logo">Split<span>Eat</span> <span style="font-size:22px">🍽️</span></div>
+        <div class="home-sub">Dividí la cuenta entre amigos</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <span id="role-badge" style="font-size:11px;font-family:'Syne',sans-serif;font-weight:700"></span>
+        <div style="display:flex;gap:6px">
+          <button onclick="openAccessCodeModal()" class="admin-only icon-btn" title="Cambiar código de acceso" style="font-size:13px">🔑</button>
+          <button onclick="logout()" class="icon-btn" title="Cerrar sesión" style="font-size:13px">↩</button>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="home-stats">
     <div class="stat-chip"><div class="stat-n" id="stat-events">0</div><div class="stat-label">Eventos</div></div>
     <div class="stat-chip"><div class="stat-n" id="stat-total">$0</div><div class="stat-label">Total gastado</div></div>
   </div>
   <div class="section-label">Mis eventos</div>
-  <button class="new-event-btn" onclick="openNewEventModal()"><div class="plus">+</div> Crear nuevo evento</button>
+  <button class="new-event-btn admin-only" onclick="openNewEventModal()"><div class="plus">+</div> Crear nuevo evento</button>
   <div class="events-list" id="events-list">
     <div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Todavía no tenés eventos.<br>Creá uno para empezar.</div></div>
   </div>
@@ -157,6 +207,7 @@ select option { background:#1a1a24; }
   <div class="top-bar">
     <button class="back-btn" onclick="goHome()">←</button>
     <div class="top-bar-title" id="ev-title">Evento</div>
+    <span id="sync-dot" class="sync-dot offline" title="Estado de sincronización" style="cursor:default"></span>
     <button onclick="openShareModal()" style="font-size:20px;background:none;border:none;color:var(--accent2);cursor:pointer;padding:4px">📤</button>
   </div>
   <div class="tab-bar">
@@ -281,6 +332,30 @@ select option { background:#1a1a24; }
 
 <div class="toast" id="toast"></div>
 
+<!-- ══ MODAL: ACCESS CODE ══ -->
+<div class="modal-bg" id="modal-access-code" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔑 Código de acceso para invitados</div>
+    <p style="font-size:13px;color:var(--muted2);margin-bottom:14px;line-height:1.5">
+      Definí el código que vas a compartir con los invitados. Podés cambiarlo cuando quieras — los invitados necesitarán el nuevo código para entrar.
+    </p>
+    <div class="field">
+      <label>Código (mín. 4 caracteres)</label>
+      <input type="text" id="access-code-inp" placeholder="Ej: ASADO2024" maxlength="20"
+        style="text-transform:uppercase;letter-spacing:3px;font-size:20px;font-family:'Syne',sans-serif;font-weight:700;text-align:center"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')saveAccessCode()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-access-code').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveAccessCode()">Guardar código</button>
+    </div>
+  </div>
+</div>
+
+
+
 <!-- ══ MODAL: EDIT FRIEND ══ -->
 <div class="modal-bg" id="modal-edit-friend" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
@@ -334,6 +409,7 @@ function showView(id) {
   document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',id==='view-home'&&i===0));
 }
 function goHome() {
+  stopSync();
   currentEventId=null; editingExpenseId=null;
   document.title = 'SplitEat — Dividí la cuenta';
   showView('view-home'); renderHome();
@@ -343,6 +419,9 @@ function goHome() {
 // HOME
 // ════════════════════════════════
 function renderHome() {
+  _renderHomeInner();
+}
+function _renderHomeInner() {
   const total=db.events.reduce((s,e)=>s+(e.expenses||[]).reduce((ss,ex)=>ss+ex.amount,0),0);
   document.getElementById('stat-events').textContent=db.events.length;
   document.getElementById('stat-total').textContent='$'+total.toFixed(0);
@@ -361,6 +440,7 @@ function renderHome() {
       <div class="event-card-footer">
         <span class="badge">👥 ${(ev.friends||[]).length}</span>
         <span class="badge">🧾 ${(ev.expenses||[]).length}</span>
+
         <div class="event-card-actions">
           <button class="icon-btn" title="Clonar" onclick="cloneEvent(${ev.id},event)">⧉</button>
           <button class="icon-btn" title="Editar" onclick="editEventModal(${ev.id},event)">✎</button>
@@ -399,8 +479,12 @@ function saveEvent() {
   const date=document.getElementById('ev-date-inp').value;
   const desc=document.getElementById('ev-desc-inp').value.trim();
   const eid=document.getElementById('ev-editing-id').value;
-  if(eid){ const ev=getEvent(parseInt(eid)); ev.name=name; ev.date=date; ev.description=desc; }
-  else db.events.push({id:db.nextEventId++,name,date,description:desc,friends:[],expenses:[],nextFriendId:1,nextExpenseId:1});
+  if(eid){
+    const ev=getEvent(parseInt(eid)); ev.name=name; ev.date=date; ev.description=desc;
+    pushEvent(ev);
+  } else {
+    db.events.push({id:db.nextEventId++,name,date,description:desc,friends:[],expenses:[],nextFriendId:1,nextExpenseId:1});
+  }
   save(); closeEventModalDirect(); renderHome();
   showToast(eid?'✓ Evento actualizado':'✓ Evento creado');
 }
@@ -408,7 +492,14 @@ function deleteEvent(id,e) {
   e.stopPropagation();
   if(!confirm('¿Eliminar este evento?')) return;
   db.events=db.events.filter(ev=>ev.id!==id);
-  save(); renderHome(); showToast('Evento eliminado');
+  save();
+  // Remove from Firebase
+  if(firebaseReady) {
+    fbDatabase.ref('spliteat/events/'+id).remove()
+      .then(()=>setSyncDot('synced'))
+      .catch(err=>{ setSyncDot('error'); console.warn(err); });
+  }
+  renderHome(); showToast('Evento eliminado');
 }
 function cloneEvent(id,e) {
   e.stopPropagation();
@@ -430,7 +521,10 @@ function openEvent(id) {
   const ev=getEvent(id);
   document.getElementById('ev-title').textContent=ev.name;
   document.title = ev.name + ' — SplitEat';
-  showView('view-event'); switchInnerTab('amigos',null);
+  showView('view-event');
+  startSync(ev);
+
+  switchInnerTab('amigos',null);
 }
 function switchInnerTab(name,btn) {
   document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
@@ -457,7 +551,9 @@ function addFriend() {
   const alias=document.getElementById('f-alias').value.trim();
   ev.friends.push({id:ev.nextFriendId++,name,alias,diet:document.getElementById('f-diet').value,alcohol:document.getElementById('f-alc').value});
   document.getElementById('f-name').value=''; document.getElementById('f-alias').value='';
-  save(); renderFriends(); showToast('✓ '+name+' agregado/a');
+  save();
+  pushEvent(getEvent(currentEventId));
+  renderFriends(); showToast('✓ '+name+' agregado/a');
 }
 function editFriend(id) {
   const ev=getEvent(currentEventId), f=ev.friends.find(fr=>fr.id===id);
@@ -482,7 +578,9 @@ function saveEditFriend() {
   f.alcohol=document.getElementById('ef-alc').value;
   // update payer names in existing expenses
   ev.expenses.forEach(e=>{ const p=e.payers.find(p=>p.friendId===id); if(p) p.name=name; });
-  save(); renderFriends(); renderPayerForm();
+  save();
+  pushEvent(getEvent(currentEventId));
+  renderFriends(); renderPayerForm();
   document.getElementById('modal-edit-friend').classList.remove('open');
   showToast('✓ '+name+' actualizado/a');
 }
@@ -501,7 +599,9 @@ function removeFriend(id) {
   });
   // Remove expenses that now have no applicable members
   ev.expenses = ev.expenses.filter(e=>e.applicable.length>0 || e.type==='tip');
-  save(); renderFriends(); renderPayerForm(); renderExpenses();
+  save();
+  pushEvent(getEvent(currentEventId));
+  renderFriends(); renderPayerForm(); renderExpenses();
   showToast('Amigo/a eliminado/a y gastos actualizados');
 }
 function renderFriends() {
@@ -717,7 +817,9 @@ function saveExpense() {
   }
   document.getElementById('e-desc').value=''; document.getElementById('e-amt').value='';
   currentPayers=[]; refreshPayerUI();
-  save(); renderExpenses();
+  save();
+  if(currentEventId) pushEvent(getEvent(currentEventId));
+  renderExpenses();
 }
 function editExpense(id) {
   const ev=getEvent(currentEventId), exp=ev.expenses.find(e=>e.id===id);
@@ -745,7 +847,9 @@ function deleteExpense(id) {
   if(!confirm(`¿Eliminar "${exp.desc}"?`)) return;
   ev.expenses=ev.expenses.filter(e=>e.id!==id);
   if(editingExpenseId===id) cancelEdit();
-  save(); renderExpenses(); showToast('Gasto eliminado');
+  save();
+  if(currentEventId) pushEvent(getEvent(currentEventId));
+  renderExpenses(); showToast('Gasto eliminado');
 }
 function renderExpenses() {
   const ev=getEvent(currentEventId), el=document.getElementById('expense-list-inner');
@@ -1098,10 +1202,336 @@ function showToast(msg, type='success') {
 }
 
 // ════════════════════════════════
+// ══ FIREBASE CONFIG ══════════════
+// Para activar la sincronización en tiempo real, reemplazá los valores
+// de abajo con los de tu proyecto Firebase:
+// 1. Ir a https://console.firebase.google.com
+// 2. Crear proyecto → Build → Realtime Database → Crear (modo test)
+// 3. Project Settings → Your apps → Web → Registrar app → copiar firebaseConfig
+// ═════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyBDvglF1M0URI1WJGpxwYiSCPb4m_hGAUM",
+  authDomain:        "splitapp-fa132.firebaseapp.com",
+  databaseURL:       "https://splitapp-fa132-default-rtdb.firebaseio.com",
+  projectId:         "splitapp-fa132",
+  storageBucket:     "splitapp-fa132.firebasestorage.app",
+  messagingSenderId: "918169377324",
+  appId:             "1:918169377324:web:1c416eb76ea0ae5c150f89"
+};
+// ═════════════════════════════════
+
+let firebaseReady = false;
+let fbDatabase = null;
+let syncListener = null;
+let syncEventId = null;
+
+// ── Auth state ──
+let currentRole = null; // 'admin' | 'guest' | null
+const ADMIN_PASSWORD = "spliteat_admin_2024"; // contraseña fija del admin (hardcoded)
+// Access code is stored in Firebase at /spliteat/accessCode
+// Admin can change it anytime from the app
+
+function initFirebase() {
+  if(FIREBASE_CONFIG.apiKey === 'TU_API_KEY') return; // not configured
+  try {
+    const app = firebase.app();
+    fbDatabase = firebase.database();
+    firebaseReady = true;
+  } catch(e) {
+    try {
+      firebase.initializeApp(FIREBASE_CONFIG);
+      fbDatabase = firebase.database();
+      firebaseReady = true;
+    } catch(e2) { console.warn('Firebase init failed:', e2); }
+  }
+}
+
+function fbRef(eventId) {
+  return fbDatabase.ref('spliteat/events/' + eventId);
+}
+
+function setSyncDot(state) {
+  const el = document.getElementById('sync-dot');
+  if(!el) return;
+  el.className = 'sync-dot ' + state;
+  const labels = { synced:'Sincronizado', saving:'Guardando...', error:'Error de sincronización', offline:'Sin sincronización' };
+  el.title = labels[state] || state;
+}
+
+async function pushEvent(ev) {
+  if(!firebaseReady) return;
+  setSyncDot('saving');
+  try {
+    await fbDatabase.ref('spliteat/events/' + ev.id).set(JSON.parse(JSON.stringify(ev)));
+    setSyncDot('synced');
+  } catch(e) {
+    setSyncDot('error');
+    console.warn('Firebase push error:', e);
+  }
+}
+
+function startSync(ev) {
+  if(!firebaseReady) { setSyncDot('offline'); return; }
+  stopSync();
+  syncEventId = ev.id;
+  setSyncDot('saving');
+  syncListener = fbDatabase.ref('spliteat/events/' + ev.id).on('value', snapshot => {
+    const data = snapshot.val();
+    if(!data) { setSyncDot('synced'); return; }
+    const idx = db.events.findIndex(e => e.id === data.id);
+    if(idx >= 0) db.events[idx] = data;
+    else db.events.push(data);
+    save();
+    if(currentEventId === data.id) {
+      document.getElementById('ev-title').textContent = data.name;
+      const activePane = document.querySelector('.tab-pane.active')?.id;
+      if(activePane === 'pane-amigos')    renderFriends();
+      if(activePane === 'pane-gastos')    { renderPayerForm(); renderExpenses(); }
+      if(activePane === 'pane-resultado') renderResult();
+    }
+    setSyncDot('synced');
+  }, err => { setSyncDot('error'); console.warn('Sync error:', err); });
+}
+
+function stopSync() {
+  if(syncListener && syncEventId) {
+    fbDatabase.ref('spliteat/events/' + syncEventId).off('value', syncListener);
+    syncListener = null; syncEventId = null;
+  }
+  setSyncDot('offline');
+}
+
+let globalSyncListener = null;
+function startGlobalSync() {
+  if(!firebaseReady) return;
+  if(globalSyncListener) fbDatabase.ref('spliteat/events').off('value', globalSyncListener);
+  globalSyncListener = fbDatabase.ref('spliteat/events').on('value', snapshot => {
+    if(!snapshot.exists()) {
+      // All events deleted
+      db.events = [];
+      save();
+      if(document.getElementById('view-home').classList.contains('active')) _renderHomeInner();
+      setSyncDot('synced');
+      return;
+    }
+    const remoteEvents = Object.values(snapshot.val());
+    db.events = remoteEvents;
+    const maxId = remoteEvents.reduce((m,e)=>Math.max(m,e.id),0);
+    if(maxId >= db.nextEventId) db.nextEventId = maxId + 1;
+    save();
+    // Re-render current view
+    if(document.getElementById('view-home').classList.contains('active')) _renderHomeInner();
+    if(currentEventId) {
+      // If current event was deleted, go home
+      if(!db.events.find(e=>e.id===currentEventId)) {
+        showToast('El evento fue eliminado');
+        goHome(); return;
+      }
+      const activePane = document.querySelector('.tab-pane.active')?.id;
+      if(activePane === 'pane-amigos')    renderFriends();
+      if(activePane === 'pane-gastos')    renderExpenses();
+      if(activePane === 'pane-resultado') renderResult();
+    }
+    setSyncDot('synced');
+  }, err => { setSyncDot('error'); });
+}
+
+function generateCode() {
+  return Math.random().toString(36).substring(2,8).toUpperCase();
+}
+
+// ════════════════════════════════
+// AUTH & BOOT
+// ════════════════════════════════
+function bootApp() {
+  const saved = localStorage.getItem('spliteat_role');
+  if(saved === 'admin' || saved === 'guest') {
+    currentRole = saved;
+    if(currentRole === 'guest') syncAllEvents().then(()=>{ startGlobalSync(); _renderHomeInner(); applyRole(); });
+    else { startGlobalSync(); showView('view-home'); renderHome(); applyRole(); }
+  } else {
+    showView('view-login');
+  }
+}
+
+function applyRole() {
+  // Hide/show admin-only elements
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = currentRole === 'admin' ? '' : 'none';
+  });
+  document.querySelectorAll('.guest-hide').forEach(el => {
+    el.style.display = currentRole === 'admin' ? '' : 'none';
+  });
+  // Show role badge
+  const badge = document.getElementById('role-badge');
+  if(badge) {
+    badge.textContent = currentRole === 'admin' ? '👑 Admin' : '👤 Invitado';
+    badge.style.color = currentRole === 'admin' ? 'var(--accent)' : 'var(--muted2)';
+  }
+  // Show join button only for guests (to re-join if needed) — hide for admin
+  const joinBtn = document.getElementById('join-btn');
+  if(joinBtn) joinBtn.style.display = 'none';
+}
+
+async function loginAdmin() {
+  const pwd = document.getElementById('login-admin-pwd').value;
+  if(pwd !== ADMIN_PASSWORD) { showLoginError('Contraseña incorrecta'); return; }
+  currentRole = 'admin';
+  localStorage.setItem('spliteat_role','admin');
+  document.getElementById('view-login').classList.remove('active');
+  startGlobalSync();
+  showView('view-home');
+  renderHome();
+  applyRole();
+}
+
+async function loginGuest() {
+  const code = document.getElementById('login-guest-code').value.trim().toUpperCase();
+  if(!code) { showLoginError('Ingresá el código'); return; }
+  if(!firebaseReady) { showLoginError('Error de conexión'); return; }
+  showLoginError('Verificando…');
+  try {
+    const snap = await fbDatabase.ref('spliteat/accessCode').get();
+    const validCode = snap.val();
+    if(!validCode) { showLoginError('No hay código configurado aún. Pedíselo al admin.'); return; }
+    if(code !== validCode.toUpperCase()) { showLoginError('Código incorrecto'); return; }
+    currentRole = 'guest';
+    localStorage.setItem('spliteat_role','guest');
+    showLoginError('Cargando eventos…');
+    await syncAllEvents();
+    startGlobalSync();
+    document.getElementById('view-login').classList.remove('active');
+    showView('view-home');
+    renderHome();
+    applyRole();
+  } catch(e) {
+    showLoginError('Error al verificar. Revisá tu conexión.');
+    console.warn(e);
+  }
+}
+
+async function syncAllEvents() {
+  if(!firebaseReady) return;
+  try {
+    const snap = await fbDatabase.ref('spliteat/events').get();
+    if(!snap.exists()) { save(); return; }
+    const remoteEvents = Object.values(snap.val());
+    // Remote is source of truth — replace all local events
+    db.events = remoteEvents;
+    // Reset nextEventId to avoid collisions
+    const maxId = remoteEvents.reduce((m,e)=>Math.max(m,e.id),0);
+    if(maxId >= db.nextEventId) db.nextEventId = maxId + 1;
+    save();
+  } catch(e) { console.warn('syncAllEvents error:', e); }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  if(el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+function logout() {
+  localStorage.removeItem('spliteat_role');
+  currentRole = null;
+  stopSync();
+  showView('view-login');
+}
+
+// ── Admin: set access code ──
+async function saveAccessCode() {
+  const code = document.getElementById('access-code-inp').value.trim().toUpperCase();
+  if(!code || code.length < 4) { showToast('El código debe tener al menos 4 caracteres','error'); return; }
+  if(!firebaseReady) { showToast('Firebase no conectado','error'); return; }
+  try {
+    await fbDatabase.ref('spliteat/accessCode').set(code);
+    document.getElementById('modal-access-code').classList.remove('open');
+    showToast('✓ Código actualizado: ' + code);
+  } catch(e) { showToast('Error al guardar','error'); }
+}
+
+async function openAccessCodeModal() {
+  try {
+    const snap = await fbDatabase.ref('spliteat/accessCode').get();
+    document.getElementById('access-code-inp').value = snap.val() || '';
+  } catch(e) {}
+  document.getElementById('modal-access-code').classList.add('open');
+  setTimeout(()=>document.getElementById('access-code-inp').focus(), 200);
+}
+
+// ════════════════════════════════
+// JOIN / CODE SHARE (kept for backward compat)
+// ════════════════════════════════
+function openJoinModal() {
+  document.getElementById('join-code-inp').value='';
+  document.getElementById('join-error').style.display='none';
+  document.getElementById('modal-join').classList.add('open');
+  setTimeout(()=>document.getElementById('join-code-inp').focus(),200);
+}
+
+async function joinEvent() {
+  const code = document.getElementById('join-code-inp').value.trim().toUpperCase();
+  if(code.length !== 6) { showJoinError('Ingresá un código de 6 caracteres'); return; }
+  if(!firebaseReady) { showJoinError('Firebase no está configurado'); return; }
+  showJoinError('Buscando evento…');
+  try {
+    const snap = await fbRef(code).get();
+    if(!snap.exists()) { showJoinError('Código no encontrado. Verificá y volvé a intentar.'); return; }
+    const data = snap.val();
+    // Check if we already have this event
+    const existing = db.events.find(e => e.shareCode === code);
+    if(existing) {
+      // Update local with remote
+      const idx = db.events.findIndex(e=>e.shareCode===code);
+      db.events[idx] = data;
+    } else {
+      db.events.push(data);
+    }
+    save();
+    document.getElementById('modal-join').classList.remove('open');
+    renderHome();
+    showToast('✓ Evento unido: '+data.name);
+    // Open the event
+    setTimeout(()=>openEvent(data.id), 300);
+  } catch(e) {
+    showJoinError('Error al buscar el evento. Revisá tu conexión.');
+    console.warn(e);
+  }
+}
+
+function showJoinError(msg) {
+  const el = document.getElementById('join-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function openCodeModal() {
+  const ev = getEvent(currentEventId);
+  if(!ev?.shareCode) { showToast('Este evento no tiene código de sincronización'); return; }
+  document.getElementById('modal-code-display').textContent = ev.shareCode;
+  document.getElementById('modal-code').classList.add('open');
+}
+
+function copyCode() {
+  const code = document.getElementById('modal-code-display').textContent;
+  navigator.clipboard?.writeText(code).then(()=>showToast('✓ Código copiado')).catch(()=>{
+    const tmp=document.createElement('input'); tmp.value=code;
+    document.body.appendChild(tmp); tmp.select(); document.execCommand('copy');
+    document.body.removeChild(tmp); showToast('✓ Código copiado');
+  });
+}
+
+function shareCodeWhatsApp() {
+  const ev = getEvent(currentEventId);
+  const txt = `🍽️ Unite al evento *${ev.name}* en SplitEat!
+Código: *${ev.shareCode}*`;
+  window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
+}
+
+// ════════════════════════════════
 // INIT
 // ════════════════════════════════
 load();
-renderHome();
+initFirebase();
+bootApp();
 </script>
 </body>
 </html>
