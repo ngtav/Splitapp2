@@ -1249,6 +1249,29 @@ const ADMIN_PASSWORD = "spliteat_admin_2024"; // contraseña fija del admin (har
 // Access code is stored in Firebase at /spliteat/accessCode
 // Admin can change it anytime from the app
 
+function sanitizeEvent(ev) {
+  if(!ev) return ev;
+  if(!ev.friends)       ev.friends = [];
+  if(!ev.expenses)      ev.expenses = [];
+  if(!ev.nextFriendId)  ev.nextFriendId = (ev.friends.reduce((m,f)=>Math.max(m,f.id||0),0))+1;
+  if(!ev.nextExpenseId) ev.nextExpenseId = (ev.expenses.reduce((m,e)=>Math.max(m,e.id||0),0))+1;
+  // Firebase stores arrays as objects when they have gaps — convert back
+  if(ev.friends && !Array.isArray(ev.friends))   ev.friends   = Object.values(ev.friends);
+  if(ev.expenses && !Array.isArray(ev.expenses)) ev.expenses  = Object.values(ev.expenses);
+  ev.friends.forEach(f => {
+    if(!f.alias)   f.alias   = '';
+    if(!f.diet)    f.diet    = 'meat';
+    if(!f.alcohol) f.alcohol = 'yes';
+  });
+  ev.expenses.forEach(e => {
+    if(!e.applicable) e.applicable = [];
+    if(!e.payers)     e.payers     = [];
+    if(!Array.isArray(e.applicable)) e.applicable = Object.values(e.applicable);
+    if(!Array.isArray(e.payers))     e.payers     = Object.values(e.payers);
+  });
+  return ev;
+}
+
 function initFirebase() {
   if(FIREBASE_CONFIG.apiKey === 'TU_API_KEY') return; // not configured
   try {
@@ -1298,7 +1321,7 @@ function startSync(ev) {
   setSyncDot('saving');
   syncListener = fbDatabase.ref('spliteat/events/' + ev.id).on('value', snapshot => {
     if(isPushing) return; // skip stale update during our own push
-    const data = snapshot.val();
+    const data = sanitizeEvent(snapshot.val());
     if(!data) { setSyncDot('synced'); return; }
     const idx = db.events.findIndex(e => e.id === data.id);
     if(idx >= 0) db.events[idx] = data;
@@ -1341,7 +1364,7 @@ function startGlobalSync() {
       setSyncDot('synced');
       return;
     }
-    const remoteEvents = Object.values(snapshot.val());
+    const remoteEvents = Object.values(snapshot.val()).map(sanitizeEvent);
     db.events = remoteEvents;
     const maxId = remoteEvents.reduce((m,e)=>Math.max(m,e.id),0);
     if(maxId >= db.nextEventId) db.nextEventId = maxId + 1;
