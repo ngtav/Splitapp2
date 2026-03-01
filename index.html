@@ -445,9 +445,11 @@ function _renderHomeInner() {
         <span class="badge">🧾 ${(ev.expenses||[]).length}</span>
 
         <div class="event-card-actions">
-          <button class="icon-btn" title="Clonar" onclick="cloneEvent(${ev.id},event)">⧉</button>
-          <button class="icon-btn" title="Editar" onclick="editEventModal(${ev.id},event)">✎</button>
-          <button class="icon-btn danger" title="Eliminar" onclick="deleteEvent(${ev.id},event)">✕</button>
+          ${currentRole==='admin'?`
+            <button class="icon-btn" title="Clonar" onclick="cloneEvent(${ev.id},event)">⧉</button>
+            <button class="icon-btn" title="Editar" onclick="editEventModal(${ev.id},event)">✎</button>
+            <button class="icon-btn danger" title="Eliminar" onclick="deleteEvent(${ev.id},event)">✕</button>
+          `:''}
         </div>
       </div>
     </div>`;
