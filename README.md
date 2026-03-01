@@ -13,12 +13,3 @@ App mobile-first para distribuir gastos entre amigos, con soporte para dietas, a
 - 💬 **Compartir por WhatsApp**: resultado formateado con alias incluidos
 - 📅 **Clonar eventos**: reutilizá el mismo grupo para la próxima salida
 
-## 🚀 Cómo usar
-
-Abrí la app en tu navegador o instalala en tu celular desde Chrome → Menú → "Agregar a pantalla de inicio".
-
-**URL:** `https://TU_USUARIO.github.io/spliteat`
-
-## 🛠️ Deploy en GitHub Pages
-
-Ver instrucciones abajo.
