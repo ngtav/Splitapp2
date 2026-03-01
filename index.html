@@ -172,7 +172,7 @@ select option { background:#1a1a24; }
         <div class="field"><label>Alias CVU <span style="color:var(--muted);font-weight:400">(opcional)</span></label><input type="text" id="f-alias" placeholder="mi.alias" maxlength="40"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Dieta</label><select id="f-diet"><option value="meat">🥩 Come carne</option><option value="veg">🥗 Vegetariano/a</option></select></div>
+        <div class="field"><label>Dieta</label><select id="f-diet"><option value="meat">🥩 Come carne</option><option value="veg">🥗 Vegetariano/a</option><option value="none">🚫 No come</option></select></div>
         <div class="field"><label>Alcohol</label><select id="f-alc"><option value="yes">🍺 Toma</option><option value="no">🧃 No toma</option></select></div>
       </div>
       <button class="btn btn-primary" onclick="addFriend()">+ Agregar</button>
@@ -188,12 +188,12 @@ select option { background:#1a1a24; }
         <div class="field"><label>Monto ($)</label><input type="number" id="e-amt" placeholder="0.00" min="0" step="0.01" oninput="updateRemaining()"></div>
         <div class="field"><label>Tipo</label>
           <select id="e-type" onchange="togglePayerSection()">
-            <option value="all">🍽️ Todos</option>
-            <option value="food-all">🥗🥩 Comida</option>
+            <option value="food-all">🍽️ Comida (todos los que comen)</option>
             <option value="food-meat">🥩 Solo carnívoros</option>
             <option value="food-veg">🥗 Solo veggie</option>
-            <option value="alcohol">🍺 Solo alcohol</option>
+            <option value="alcohol">🍺 Solo alcohol (incluso no comen)</option>
             <option value="no-alcohol">🧃 Sin alcohol</option>
+            <option value="all">👥 Gasto general (todos sin excepción)</option>
             <option value="tip">🤝 Propina / Bono</option>
           </select>
         </div>
@@ -270,6 +270,27 @@ select option { background:#1a1a24; }
 
 <div class="toast" id="toast"></div>
 
+<!-- ══ MODAL: EDIT FRIEND ══ -->
+<div class="modal-bg" id="modal-edit-friend" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✎ Editar amigo</div>
+    <input type="hidden" id="ef-id">
+    <div class="row2">
+      <div class="field"><label>Nombre</label><input type="text" id="ef-name" maxlength="22"></div>
+      <div class="field"><label>Alias CVU <span style="color:var(--muted);font-weight:400">(opcional)</span></label><input type="text" id="ef-alias" placeholder="mi.alias" maxlength="40"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Dieta</label><select id="ef-diet"><option value="meat">🥩 Come carne</option><option value="veg">🥗 Vegetariano/a</option><option value="none">🚫 No come</option></select></div>
+      <div class="field"><label>Alcohol</label><select id="ef-alc"><option value="yes">🍺 Toma</option><option value="no">🧃 No toma</option></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-edit-friend').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEditFriend()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="bottom-nav">
   <button class="nav-btn active" onclick="goHome()"><span class="nav-icon">🏠</span>Inicio</button>
   <button class="nav-btn" onclick="if(currentEventId)switchInnerTab('amigos',null)"><span class="nav-icon">👥</span>Amigos</button>
@@ -285,7 +306,7 @@ let db = { events: [], nextEventId: 1 };
 let currentEventId = null;
 let editingExpenseId = null;
 const COLORS = ['#b8f050','#50c8f0','#f09050','#50f0a0','#b050f0','#f05098','#f0d050','#5080f0'];
-const TYPE_LABEL = {'all':'Todos','food-all':'Comida (todos)','food-meat':'Solo carnívoros','food-veg':'Solo veggie','alcohol':'Solo alcohol','no-alcohol':'Sin alcohol','tip':'Propina / Bono'};
+const TYPE_LABEL = {'all':'Gasto general (todos)','food-all':'Comida (todos los que comen)','food-meat':'Solo carnívoros','food-veg':'Solo veggie','alcohol':'Solo alcohol','no-alcohol':'Sin alcohol','tip':'Propina / Bono'};
 
 function save() { try { localStorage.setItem('spliteat_v3', JSON.stringify(db)); } catch(e){} }
 function load() { try { const s=localStorage.getItem('spliteat_v3'); if(s) db=JSON.parse(s); } catch(e){} }
@@ -424,12 +445,31 @@ function addFriend() {
   document.getElementById('f-name').value=''; document.getElementById('f-alias').value='';
   save(); renderFriends(); showToast('✓ '+name+' agregado/a');
 }
-function editFriendAlias(id) {
+function editFriend(id) {
   const ev=getEvent(currentEventId), f=ev.friends.find(fr=>fr.id===id);
-  const a=prompt('Alias CVU de '+f.name+':',f.alias||'');
-  if(a===null) return;
-  f.alias=a.trim(); save(); renderFriends();
-  showToast(f.alias?'✓ Alias guardado':'Alias eliminado');
+  document.getElementById('ef-id').value=id;
+  document.getElementById('ef-name').value=f.name;
+  document.getElementById('ef-alias').value=f.alias||'';
+  document.getElementById('ef-diet').value=f.diet;
+  document.getElementById('ef-alc').value=f.alcohol;
+  document.getElementById('modal-edit-friend').classList.add('open');
+  setTimeout(()=>document.getElementById('ef-name').focus(),200);
+}
+function saveEditFriend() {
+  const ev=getEvent(currentEventId);
+  const id=parseInt(document.getElementById('ef-id').value);
+  const f=ev.friends.find(fr=>fr.id===id);
+  const name=document.getElementById('ef-name').value.trim();
+  if(!name){ showToast('Ingresá un nombre'); return; }
+  f.name=name;
+  f.alias=document.getElementById('ef-alias').value.trim();
+  f.diet=document.getElementById('ef-diet').value;
+  f.alcohol=document.getElementById('ef-alc').value;
+  // update payer names in existing expenses
+  ev.expenses.forEach(e=>{ const p=e.payers.find(p=>p.friendId===id); if(p) p.name=name; });
+  save(); renderFriends(); renderPayerForm();
+  document.getElementById('modal-edit-friend').classList.remove('open');
+  showToast('✓ '+name+' actualizado/a');
 }
 function removeFriend(id) {
   const ev=getEvent(currentEventId);
@@ -445,13 +485,13 @@ function renderFriends() {
       <div class="friend-info">
         <div class="friend-name">${f.name}</div>
         <div class="tags">
-          ${f.diet==='veg'?'<span class="tag tag-veg">🥗 Veggie</span>':'<span class="tag tag-meat">🥩 Carne</span>'}
+          ${f.diet==='veg'?'<span class="tag tag-veg">🥗 Veggie</span>':f.diet==='none'?'<span class="tag tag-noalc">🚫 No come</span>':'<span class="tag tag-meat">🥩 Carne</span>'}
           ${f.alcohol==='yes'?'<span class="tag tag-alc">🍺 Alcohol</span>':'<span class="tag tag-noalc">🧃 Sin alcohol</span>'}
           ${f.alias?`<span class="tag tag-alias">💳 ${f.alias}</span>`:''}
         </div>
       </div>
       <div style="display:flex;gap:5px">
-        <button class="icon-btn" onclick="editFriendAlias(${f.id})" style="font-size:12px">✎</button>
+        <button class="icon-btn" onclick="editFriend(${f.id})" style="font-size:12px">✎</button>
         <button class="icon-btn danger" onclick="removeFriend(${f.id})">✕</button>
       </div>
     </div>`).join('');
@@ -537,7 +577,9 @@ function saveExpense() {
     }
   }
   const applicable=ev.friends.filter(f=>{
-    if(['all','food-all','tip'].includes(type)) return true;
+    if(type==='all') return true;
+    if(type==='tip') return true;
+    if(type==='food-all') return f.diet!=='none';     // "no come" excluded from food
     if(type==='food-meat') return f.diet==='meat';
     if(type==='food-veg') return f.diet==='veg';
     if(type==='alcohol') return f.alcohol==='yes';
@@ -611,23 +653,38 @@ function renderExpenses() {
 // RESULT CALCULATION
 // ════════════════════════════════
 function calcResult(ev) {
-  const owes={},paid={};
-  (ev.friends||[]).forEach(f=>{ owes[f.id]=0; paid[f.id]=0; });
+  const owes={}, paid={}, rawOwes={};
+  (ev.friends||[]).forEach(f=>{ owes[f.id]=0; paid[f.id]=0; rawOwes[f.id]=0; });
+
   (ev.expenses||[]).forEach(e=>{
-    const share=e.amount/e.applicable.length;
-    e.applicable.forEach(fid=>{ owes[fid]=(owes[fid]||0)+share; });
+    const n = e.applicable.length;
+    const exact = e.amount / n;
+    const floor = Math.floor(exact);
+    const remainder = Math.round((e.amount - floor * n)); // extra pesos to distribute
+
+    // assign floored share to everyone, then add 1 to the first `remainder` people
+    e.applicable.forEach((fid, idx)=>{
+      const share = floor + (idx < remainder ? 1 : 0);
+      rawOwes[fid] = (rawOwes[fid]||0) + share;
+    });
     e.payers.forEach(p=>{ paid[p.friendId]=(paid[p.friendId]||0)+p.paid; });
   });
+
+  // round paid too (payers enter exact amounts, but we round for display/transfer)
+  (ev.friends||[]).forEach(f=>{ owes[f.id] = rawOwes[f.id]||0; });
+
   const balance={};
-  (ev.friends||[]).forEach(f=>{ balance[f.id]=(paid[f.id]||0)-(owes[f.id]||0); });
-  const cr=(ev.friends||[]).filter(f=>balance[f.id]>0.01).map(f=>({id:f.id,name:f.name,amount:balance[f.id]}));
-  const dr=(ev.friends||[]).filter(f=>balance[f.id]<-0.01).map(f=>({id:f.id,name:f.name,amount:-balance[f.id]}));
+  (ev.friends||[]).forEach(f=>{ balance[f.id] = Math.round((paid[f.id]||0)) - (owes[f.id]||0); });
+
+  // greedy transfers (all integer amounts)
+  const cr=(ev.friends||[]).filter(f=>balance[f.id]>0).map(f=>({id:f.id,name:f.name,amount:balance[f.id]}));
+  const dr=(ev.friends||[]).filter(f=>balance[f.id]<0).map(f=>({id:f.id,name:f.name,amount:-balance[f.id]}));
   const transfers=[]; let ci=0,di=0;
   while(ci<cr.length&&di<dr.length){
     const t=Math.min(cr[ci].amount,dr[di].amount);
-    if(t>0.01) transfers.push({from:dr[di].name,to:cr[ci].name,amount:t});
+    if(t>0) transfers.push({from:dr[di].name,to:cr[ci].name,amount:t});
     cr[ci].amount-=t; dr[di].amount-=t;
-    if(cr[ci].amount<0.01)ci++; if(dr[di].amount<0.01)di++;
+    if(cr[ci].amount<=0)ci++; if(dr[di].amount<=0)di++;
   }
   return {owes,paid,balance,transfers};
 }
@@ -635,36 +692,65 @@ function renderResult() {
   const ev=getEvent(currentEventId), el=document.getElementById('result-inner');
   if(!ev.friends.length||!ev.expenses.length){ el.innerHTML='<div class="empty"><div class="empty-icon">💰</div><div class="empty-text">Agregá amigos y gastos para ver el resultado.</div></div>'; return; }
   const {owes,paid,balance,transfers}=calcResult(ev);
-  const total=ev.expenses.reduce((s,e)=>s+e.amount,0);
+  const total=Math.round(ev.expenses.reduce((s,e)=>s+e.amount,0));
   let html=`<div class="summary-card">
-    <div class="summary-row"><span>Gasto total</span><span class="val" style="color:var(--accent)">$${total.toFixed(2)}</span></div>
+    <div class="summary-row"><span>Gasto total</span><span class="val" style="color:var(--accent)">$${total}</span></div>
     <div class="summary-row"><span>Gastos registrados</span><span class="val">${ev.expenses.length}</span></div>
     <div class="summary-row"><span>Personas</span><span class="val">${ev.friends.length}</span></div>
   </div>
-  <div style="font-family:'Syne',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">Por persona</div>`;
+  <div style="font-family:'Syne',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:14px 0 8px">Lo que corresponde pagar por perfil</div>`;
+
+  // ── PROFILE BREAKDOWN ──
+  const profiles = [
+    { label: '🥩🍺 Carne + Alcohol',      filter: f => f.diet==='meat' && f.alcohol==='yes' },
+    { label: '🥩🧃 Carne sin alcohol',    filter: f => f.diet==='meat' && f.alcohol==='no'  },
+    { label: '🥗🍺 Veggie + Alcohol',     filter: f => f.diet==='veg'  && f.alcohol==='yes' },
+    { label: '🥗🧃 Veggie sin alcohol',   filter: f => f.diet==='veg'  && f.alcohol==='no'  },
+    { label: '🚫🍺 Solo toma (no come)',  filter: f => f.diet==='none' && f.alcohol==='yes' },
+  ];
+  html += '<div class="summary-card" style="margin-bottom:12px">';
+  profiles.forEach(p => {
+    const members = ev.friends.filter(p.filter);
+    if(!members.length) return;
+    const perPerson = owes[members[0].id] || 0;
+    const names = members.map(f=>f.name).join(', ');
+    html += `<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+      <div>
+        <div style="font-size:12px;font-weight:600">${p.label}</div>
+        <div style="font-size:11px;color:var(--muted2);margin-top:2px">${names}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:10px;color:var(--muted2);margin-bottom:2px">c/u le corresponde pagar</div>
+        <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--accent)">$${perPerson}</div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  html += `<div style="font-family:'Syne',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">Por persona</div>`;
   ev.friends.forEach((f,i)=>{
-    const b=balance[f.id], cls=b>0.01?'positive':b<-0.01?'negative':'zero';
-    const lbl=b>0.01?'← Le deben':b<-0.01?'→ Debe pagar':'✓ En cero';
-    const aliasRow=(b>0.01&&f.alias)?`<div class="rp-row" style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)"><span style="color:var(--accent2)">💳 Alias</span><span style="color:var(--accent2);font-family:'DM Sans',sans-serif;font-weight:500;font-size:13px">${f.alias}</span></div>`:'';
+    const b=balance[f.id], cls=b>0?'positive':b<0?'negative':'zero';
+    const lbl=b>0?'← Le deben':b<0?'→ Debe pagar':'✓ En cero';
+    const aliasRow=(b>0&&f.alias)?`<div class="rp-row" style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)"><span style="color:var(--accent2)">💳 Alias</span><span style="color:var(--accent2);font-family:'DM Sans',sans-serif;font-weight:500;font-size:13px">${f.alias}</span></div>`:'';
     html+=`<div class="result-person">
       <div class="rp-header">
         <div class="avatar" style="background:${getColor(i)}22;color:${getColor(i)};width:32px;height:32px;border-radius:8px;font-size:12px">${initials(f.name)}</div>
         <div class="rp-name">${f.name}</div>
       </div>
       <div class="rp-rows">
-        <div class="rp-row"><span>Le corresponde pagar</span><span>$${(owes[f.id]||0).toFixed(2)}</span></div>
-        <div class="rp-row"><span>Pagó</span><span>$${(paid[f.id]||0).toFixed(2)}</span></div>
+        <div class="rp-row"><span>Le corresponde pagar</span><span>$${owes[f.id]||0}</span></div>
+        <div class="rp-row"><span>Pagó</span><span>$${Math.round(paid[f.id]||0)}</span></div>
         ${aliasRow}
       </div>
-      <div class="rp-total"><span class="rp-label ${cls}">${lbl}</span><span class="rp-amount ${cls}">$${Math.abs(b).toFixed(2)}</span></div>
+      <div class="rp-total"><span class="rp-label ${cls}">${lbl}</span><span class="rp-amount ${cls}">$${Math.abs(b)}</span></div>
     </div>`;
   });
   if(transfers.length){
-    html+='<div style="font-family:\'Syne\',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:14px 0 8px">Transferencias</div>';
+    html+=`<div style="font-family:'Syne',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:14px 0 8px">Transferencias</div>`;
     transfers.forEach(t=>{
       const rec=ev.friends.find(f=>f.name===t.to);
       const aliasHtml=rec?.alias?`<div style="font-size:11px;color:var(--accent2);margin-top:4px">💳 ${rec.alias}</div>`:'';
-      html+=`<div class="transfer-row"><span style="font-size:18px">💸</span><div class="transfer-txt"><div><strong>${t.from}</strong> → <strong>${t.to}</strong></div>${aliasHtml}</div><div class="transfer-amt">$${t.amount.toFixed(2)}</div></div>`;
+      html+=`<div class="transfer-row"><span style="font-size:18px">💸</span><div class="transfer-txt"><div><strong>${t.from}</strong> → <strong>${t.to}</strong></div>${aliasHtml}</div><div class="transfer-amt">$${t.amount}</div></div>`;
     });
   }
   el.innerHTML=html;
@@ -679,10 +765,10 @@ function buildShareText() {
   let txt=`🍽️ *SplitEat — ${ev.name}*\n`;
   if(ev.date) txt+=`📅 ${formatDate(ev.date)}\n`;
   txt+=`\n💰 *Total gastado: $${total.toFixed(2)}*\n\n👤 *Por persona:*\n`;
-  ev.friends.forEach(f=>{ const b=balance[f.id]; txt+=`${b>0.01?'🟢':b<-0.01?'🔴':'✅'} ${f.name}: ${b>0.01?`le deben $${b.toFixed(2)}`:b<-0.01?`debe pagar $${Math.abs(b).toFixed(2)}`:'en cero'}\n`; });
+  ev.friends.forEach(f=>{ const b=balance[f.id]; txt+=`${b>0?'🟢':b<0?'🔴':'✅'} ${f.name}: ${b>0?`le deben $${b}`:b<0?`debe pagar $${Math.abs(b)}`:'en cero'}\n`; });
   if(transfers.length){
     txt+='\n💸 *Transferencias:*\n';
-    transfers.forEach(t=>{ const rec=ev.friends.find(f=>f.name===t.to); txt+=`→ ${t.from} le paga $${t.amount.toFixed(2)} a ${t.to}${rec?.alias?'\n   💳 Alias: *'+rec.alias+'*':''}\n`; });
+    transfers.forEach(t=>{ const rec=ev.friends.find(f=>f.name===t.to); txt+=`→ ${t.from} le paga $${t.amount} a ${t.to}${rec?.alias?'\n   💳 Alias: *'+rec.alias+'*':''}\n`; });
   }
   return txt+'\n_Generado con SplitEat_ 🍽️';
 }
@@ -742,8 +828,20 @@ function exportExcel() {
 function exportMatrixImage() {
   const ev=getEvent(currentEventId), {owes,paid,balance,transfers}=calcResult(ev);
   const friends=ev.friends, n=friends.length;
-  const CW=110,CH=44,HW=120,PAD=24,TH=72,AH=54,FH=44;
-  const W=PAD*2+HW+CW*n, H=PAD*2+TH+CH*(n+1)+AH+FH;
+
+  // ── Profile breakdown data ──
+  const profiles = [
+    { label: 'Carne + Alcohol',    emoji: '🥩🍺', filter: f => f.diet==='meat' && f.alcohol==='yes' },
+    { label: 'Carne sin alcohol',  emoji: '🥩🧃', filter: f => f.diet==='meat' && f.alcohol==='no'  },
+    { label: 'Veggie + Alcohol',   emoji: '🥗🍺', filter: f => f.diet==='veg'  && f.alcohol==='yes' },
+    { label: 'Veggie sin alcohol', emoji: '🥗🧃', filter: f => f.diet==='veg'  && f.alcohol==='no'  },
+    { label: 'Solo toma (no come)',emoji: '🚫🍺', filter: f => f.diet==='none' && f.alcohol==='yes' },
+  ].filter(p => ev.friends.some(p.filter));
+  const PH = 44; // height per profile row
+  const PRH = profiles.length ? (20 + profiles.length * PH + 16) : 0; // total profile section height
+
+  const CW=110,CH=44,HW=120,PAD=24,TH=72,AH=46,FH=30;
+  const W=PAD*2+HW+CW*n, H=PAD*2+TH+CH*(n+1)+AH+PRH+FH;
   const canvas=document.getElementById('matrix-canvas');
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
@@ -768,9 +866,11 @@ function exportMatrixImage() {
       const x=SX+HW+ci*CW;
       if(payer.id===rec.id){dc(x,y,CW,CH,'#111118','—','#3a3a52',false,13);return;}
       const t=transfers.find(t=>t.from===payer.name&&t.to===rec.name);
-      t?dc(x,y,CW,CH,'#0f2010','$'+t.amount.toFixed(2),'#50f0a0',true,13):dc(x,y,CW,CH,'#111118','$0','#3a3a52',false,12);
+      t?dc(x,y,CW,CH,'#0f2010','$'+t.amount,'#50f0a0',true,13):dc(x,y,CW,CH,'#111118','$0','#3a3a52',false,12);
     });
   });
+
+  // ── Alias row ──
   const AY=SY+CH*(n+1)+8;
   ctx.fillStyle='#2c2c3e'; ctx.fillRect(SX,AY,HW+CW*n,1);
   ctx.fillStyle='#6868a0'; ctx.font='bold 10px Arial'; ctx.textAlign='left'; ctx.textBaseline='middle';
@@ -781,11 +881,49 @@ function exportMatrixImage() {
     let a=f.alias||'—'; while(ctx.measureText(a).width>CW-10&&a.length>3) a=a.slice(0,-1);
     if(a!==(f.alias||'—')) a=a.slice(0,-1)+'…'; ctx.fillText(a,x+CW/2,AY+20);
   });
-  ctx.fillStyle='#2c2c3e'; ctx.fillRect(SX,AY+AH-8,HW+CW*n,1);
+
+  // ── Profile breakdown section ──
+  if(profiles.length) {
+    const BY = AY + AH;
+    ctx.fillStyle='#2c2c3e'; ctx.fillRect(SX, BY, HW+CW*n, 1);
+    ctx.fillStyle='#6868a0'; ctx.font='bold 10px Arial'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText('LO QUE LE CORRESPONDE PAGAR POR PERFIL', SX+8, BY+14);
+    profiles.forEach((p, i) => {
+      const members = ev.friends.filter(p.filter);
+      // All members in the same profile pay the same amount (same applicable expenses)
+      // So just take the first member's owes as the representative per-person amount
+      const perPerson = owes[members[0].id] || 0;
+      const names = members.map(f=>f.name).join(', ');
+      const rowY = BY + 20 + i * PH;
+      const rowW = HW + CW * n;
+      // row background alternate
+      ctx.fillStyle = i%2===0 ? '#13131a' : '#0f0f18';
+      ctx.fillRect(SX+1, rowY+1, rowW-2, PH-2);
+      // emoji + label
+      ctx.fillStyle = '#e8e8f0'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(p.emoji + ' ' + p.label, SX+10, rowY + PH/2 - 6);
+      // names
+      ctx.fillStyle = '#9090b8'; ctx.font = '11px Arial';
+      let namesTxt = names;
+      const maxW = rowW * 0.65;
+      while(ctx.measureText(namesTxt).width > maxW && namesTxt.length > 3) namesTxt = namesTxt.slice(0,-1);
+      if(namesTxt !== names) namesTxt = namesTxt.slice(0,-1) + '…';
+      ctx.fillText(namesTxt, SX+10, rowY + PH/2 + 8);
+      // total amount
+      ctx.fillStyle = '#6868a0'; ctx.font = '10px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText('le corresponde pagar', SX+rowW-10, rowY + PH/2 - 7);
+      ctx.fillStyle = '#b8f050'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText('$'+perPerson, SX+rowW-10, rowY + PH/2 + 8);
+    });
+  }
+
+  // ── Footer legend ──
+  const FY = AY + AH + PRH;
+  ctx.fillStyle='#2c2c3e'; ctx.fillRect(SX, FY, HW+CW*n, 1);
   ctx.fillStyle='#6868a0'; ctx.font='11px Arial'; ctx.textAlign='left'; ctx.textBaseline='middle';
-  ctx.fillText('🟢 = transferencia a realizar   |   — = mismo usuario   |   $0 = no hay deuda',SX,AY+AH+10);
+  ctx.fillText('🟢 transferencia a realizar   |   — mismo usuario   |   $0 sin deuda', SX, FY+16);
   ctx.fillStyle='#b8f050'; ctx.font='bold 11px Arial'; ctx.textAlign='right';
-  ctx.fillText('SplitEat',SX+HW+CW*n,AY+AH+10);
+  ctx.fillText('SplitEat', SX+HW+CW*n, FY+16);
   canvas.style.display='block';
   const dataUrl=canvas.toDataURL('image/png');
   canvas.style.display='none';
