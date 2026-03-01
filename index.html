@@ -85,7 +85,8 @@ select option { background:#1a1a24; }
 .tag-alc { background:rgba(176,80,240,.12); color:var(--alc); }
 .tag-noalc { background:rgba(104,104,160,.15); color:var(--muted2); }
 .tag-alias { background:rgba(80,200,240,.10); color:var(--accent2); border:1px solid rgba(80,200,240,.25); font-size:10px; padding:2px 8px; border-radius:4px; font-family:'DM Sans',sans-serif; font-weight:500; letter-spacing:0; text-transform:none; }
-.expense-item { background:var(--surface2); border:1px solid var(--border); border-radius:var(--r-sm); padding:12px 12px 10px; margin-bottom:8px; animation:fadeUp .2s ease; }
+.expense-item { background:var(--surface2); border:1px solid var(--border); border-radius:var(--r-sm); padding:12px 12px 10px; margin-bottom:8px; animation:fadeUp .2s ease; transition:opacity .2s,transform .2s; }
+.expense-item.removing { opacity:0; transform:translateX(20px); }
 .expense-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
 .expense-desc { font-size:14px; font-weight:500; }
 .expense-meta { font-size:11px; color:var(--muted2); margin-top:3px; }
@@ -185,7 +186,7 @@ select option { background:#1a1a24; }
       <div class="card-label" id="exp-form-label">Registrar gasto</div>
       <div class="field"><label>Descripción</label><input type="text" id="e-desc" placeholder="Ej: Pizza, Vino, Asado…" maxlength="50"></div>
       <div class="row2">
-        <div class="field"><label>Monto ($)</label><input type="number" id="e-amt" placeholder="0.00" min="0" step="0.01" oninput="updateRemaining()"></div>
+        <div class="field"><label>Monto ($)</label><input type="number" id="e-amt" placeholder="0.00" min="0" step="0.01" inputmode="decimal" oninput="updateRemaining()"></div>
         <div class="field"><label>Tipo</label>
           <select id="e-type" onchange="togglePayerSection()">
             <option value="food-all">🍽️ Comida (todos los que comen)</option>
@@ -200,7 +201,17 @@ select option { background:#1a1a24; }
       </div>
       <div class="field" id="payer-field-wrapper">
         <label>¿Quién pagó?</label>
-        <div id="payer-list-form" style="margin-top:4px"></div>
+        <div id="payer-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="payer-select" onchange="onPayerSelected()" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;-webkit-appearance:none">
+            <option value="">+ Agregar pagador…</option>
+          </select>
+          <input type="number" id="payer-amt-inp" inputmode="decimal" placeholder="$monto"
+            style="display:none;width:90px;background:var(--surface2);border:1px solid var(--accent);border-radius:var(--r-sm);padding:9px 10px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none"
+            onkeydown="if(event.key==='Enter')confirmAddPayer(); if(event.key==='Escape')cancelAddPayer();">
+          <button id="payer-amt-confirm" onclick="confirmAddPayer()"
+            style="display:none;background:var(--accent);border:none;border-radius:var(--r-sm);color:#0a0a0f;cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;padding:9px 12px;white-space:nowrap">✓</button>
+        </div>
         <div id="payer-remaining" style="display:none;margin-top:8px;padding:8px 12px;border-radius:var(--r-sm);font-size:12px;font-family:'Syne',sans-serif;font-weight:700;text-align:center;transition:all .2s"></div>
       </div>
       <div style="display:flex;gap:8px">
@@ -324,6 +335,7 @@ function showView(id) {
 }
 function goHome() {
   currentEventId=null; editingExpenseId=null;
+  document.title = 'SplitEat — Dividí la cuenta';
   showView('view-home'); renderHome();
 }
 
@@ -415,7 +427,9 @@ function closeEventModalDirect(){ document.getElementById('modal-event').classLi
 // ════════════════════════════════
 function openEvent(id) {
   currentEventId=id;
-  document.getElementById('ev-title').textContent=getEvent(id).name;
+  const ev=getEvent(id);
+  document.getElementById('ev-title').textContent=ev.name;
+  document.title = ev.name + ' — SplitEat';
   showView('view-event'); switchInnerTab('amigos',null);
 }
 function switchInnerTab(name,btn) {
@@ -447,6 +461,7 @@ function addFriend() {
 }
 function editFriend(id) {
   const ev=getEvent(currentEventId), f=ev.friends.find(fr=>fr.id===id);
+  window.scrollTo({top:0,behavior:'smooth'});
   document.getElementById('ef-id').value=id;
   document.getElementById('ef-name').value=f.name;
   document.getElementById('ef-alias').value=f.alias||'';
@@ -473,8 +488,21 @@ function saveEditFriend() {
 }
 function removeFriend(id) {
   const ev=getEvent(currentEventId);
-  ev.friends=ev.friends.filter(f=>f.id!==id);
-  save(); renderFriends(); renderPayerForm();
+  const fname = ev.friends.find(f=>f.id===id)?.name || 'esta persona';
+  const hasExpenses = ev.expenses.some(e=>
+    e.applicable.includes(id) || e.payers.some(p=>p.friendId===id)
+  );
+  if(hasExpenses && !confirm(`${fname} tiene gastos asociados. Si la eliminás, esos gastos se recalcularán sin ella. ¿Continuar?`)) return;
+  ev.friends = ev.friends.filter(f=>f.id!==id);
+  // Clean up expenses: remove from applicable and payers
+  ev.expenses.forEach(e=>{
+    e.applicable = e.applicable.filter(fid=>fid!==id);
+    e.payers = e.payers.filter(p=>p.friendId!==id);
+  });
+  // Remove expenses that now have no applicable members
+  ev.expenses = ev.expenses.filter(e=>e.applicable.length>0 || e.type==='tip');
+  save(); renderFriends(); renderPayerForm(); renderExpenses();
+  showToast('Amigo/a eliminado/a y gastos actualizados');
 }
 function renderFriends() {
   const ev=getEvent(currentEventId), el=document.getElementById('friends-list-inner');
@@ -500,37 +528,127 @@ function renderFriends() {
 // ════════════════════════════════
 // PAYER FORM
 // ════════════════════════════════
+// payerData = [{friendId, name, paid}]
+let currentPayers = [];
+
 function renderPayerForm(editData) {
-  const ev=getEvent(currentEventId), el=document.getElementById('payer-list-form');
-  if(!ev.friends.length){ el.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:6px 0">Agregá amigos primero.</div>'; return; }
-  el.innerHTML=ev.friends.map(f=>{
-    const p=editData?.payers?.find(p=>p.friendId===f.id);
-    return `<div class="payer-row">
-      <label><input type="checkbox" id="pc-${f.id}" onchange="togglePayer(${f.id})" ${p?'checked':''}> ${f.name}</label>
-      <input type="number" id="pa-${f.id}" placeholder="$0" min="0" step="0.01" ${p?'':'disabled'} value="${p?p.paid:''}" oninput="updateRemaining()">
-    </div>`;
-  }).join('');
+  currentPayers = editData ? JSON.parse(JSON.stringify(editData.payers||[])) : [];
+  refreshPayerUI();
 }
-function togglePayer(id) {
-  const cb=document.getElementById('pc-'+id), inp=document.getElementById('pa-'+id);
-  inp.disabled=!cb.checked; if(cb.checked) inp.focus(); else inp.value='';
+
+function refreshPayerUI() {
+  const ev = getEvent(currentEventId);
+  if(!ev) return;
+
+  // Chips of already-added payers
+  const chips = document.getElementById('payer-chips');
+  if(chips) {
+    chips.innerHTML = currentPayers.map((p,i) => `
+      <div id="payer-chip-${i}" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;padding:5px 10px 5px 12px">
+        <span style="font-size:12px;font-weight:500">${p.name}</span>
+        <span style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--accent)">$${p.paid}</span>
+        <button onclick="editPayerChip(${i})" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:13px;padding:0;line-height:1">✎</button>
+        <button onclick="removePayerChip(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0;line-height:1">×</button>
+      </div>`).join('');
+  }
+
+  // Rebuild select with only friends not yet added
+  const sel = document.getElementById('payer-select');
+  if(!sel) return;
+  const addedIds = new Set(currentPayers.map(p=>p.friendId));
+  const available = ev.friends.filter(f=>!addedIds.has(f.id));
+  sel.innerHTML = available.length
+    ? '<option value="">+ Agregar pagador…</option>' + available.map(f=>`<option value="${f.id}">${f.name}</option>`).join('')
+    : '<option value="">— Todos agregados —</option>';
+  sel.style.display = available.length ? '' : 'none';
+  // Hide inline amount input on refresh
+  const inp = document.getElementById('payer-amt-inp');
+  const btn = document.getElementById('payer-amt-confirm');
+  if(inp) inp.style.display='none';
+  if(btn) btn.style.display='none';
   updateRemaining();
 }
+
+function onPayerSelected() {
+  const sel = document.getElementById('payer-select');
+  const fid = parseInt(sel.value);
+  const inp = document.getElementById('payer-amt-inp');
+  const btn = document.getElementById('payer-amt-confirm');
+  if(!fid) { inp.style.display='none'; btn.style.display='none'; return; }
+  // Suggest remaining
+  const total = parseFloat(document.getElementById('e-amt').value) || 0;
+  const sumSoFar = currentPayers.reduce((s,p)=>s+p.paid, 0);
+  const suggested = Math.max(0, Math.round(total - sumSoFar));
+  inp.value = suggested > 0 ? suggested : '';
+  inp.style.display = '';
+  btn.style.display = '';
+  setTimeout(()=>{ inp.focus(); inp.select(); }, 30);
+}
+
+function confirmAddPayer() {
+  const sel = document.getElementById('payer-select');
+  const inp = document.getElementById('payer-amt-inp');
+  const fid = parseInt(sel.value);
+  if(!fid) return;
+  const ev = getEvent(currentEventId);
+  const f = ev.friends.find(f=>f.id===fid);
+  if(!f) return;
+  const paid = Math.round(parseFloat(inp.value));
+  if(isNaN(paid) || paid <= 0) { showToast('Ingresá un monto válido','error'); inp.focus(); return; }
+  currentPayers.push({friendId: f.id, name: f.name, paid});
+  inp.style.display='none';
+  document.getElementById('payer-amt-confirm').style.display='none';
+  sel.value='';
+  refreshPayerUI();
+}
+
+function cancelAddPayer() {
+  const sel = document.getElementById('payer-select');
+  const inp = document.getElementById('payer-amt-inp');
+  sel.value='';
+  inp.style.display='none';
+  document.getElementById('payer-amt-confirm').style.display='none';
+}
+
+function editPayerChip(idx) {
+  const p = currentPayers[idx];
+  const chipEl = document.getElementById('payer-chip-'+idx);
+  if(!chipEl) return;
+  // Replace chip content with inline input
+  chipEl.innerHTML = `
+    <span style="font-size:12px;font-weight:500">${p.name}</span>
+    <span style="color:var(--muted2);font-size:12px">$</span>
+    <input id="chip-edit-inp-${idx}" type="number" inputmode="decimal" value="${p.paid}"
+      style="width:70px;background:var(--bg);border:1px solid var(--accent);border-radius:6px;padding:3px 6px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none"
+      oninput="" onkeydown="if(event.key==='Enter')confirmChipEdit(${idx}); if(event.key==='Escape')refreshPayerUI();">
+    <button onclick="confirmChipEdit(${idx})" style="background:var(--accent);border:none;border-radius:6px;color:#0a0a0f;cursor:pointer;font-size:11px;font-weight:700;padding:3px 8px;font-family:'Syne',sans-serif">✓</button>
+    <button onclick="refreshPayerUI()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0;line-height:1">×</button>`;
+  setTimeout(()=>{ const inp=document.getElementById('chip-edit-inp-'+idx); if(inp){inp.focus();inp.select();} }, 30);
+}
+
+function confirmChipEdit(idx) {
+  const inp = document.getElementById('chip-edit-inp-'+idx);
+  if(!inp) return;
+  const paid = Math.round(parseFloat(inp.value));
+  if(isNaN(paid) || paid <= 0) { showToast('Monto inválido','error'); return; }
+  currentPayers[idx].paid = paid;
+  refreshPayerUI();
+}
+
+function removePayerChip(idx) {
+  currentPayers.splice(idx, 1);
+  refreshPayerUI();
+}
+// togglePayer removed — replaced by chip UI
 function updateRemaining() {
   const total = parseFloat(document.getElementById('e-amt').value) || 0;
   const el = document.getElementById('payer-remaining');
   if(!el) return;
   if(document.getElementById('e-type').value === 'tip' || total <= 0) { el.style.display='none'; return; }
-  const ev = getEvent(currentEventId);
-  if(!ev) return;
-  let sumPaid = 0;
-  ev.friends.forEach(f => {
-    const cb = document.getElementById('pc-'+f.id);
-    if(cb && cb.checked) sumPaid += parseFloat(document.getElementById('pa-'+f.id).value) || 0;
-  });
-  const remaining = Math.round((total - sumPaid) * 100) / 100;
+  const sumPaid = currentPayers.reduce((s,p)=>s+p.paid, 0);
+  const remaining = Math.round(total - sumPaid);
   el.style.display = 'block';
-  if(Math.abs(remaining) < 0.01) {
+  if(remaining === 0) {
     el.style.background = 'rgba(80,240,160,.12)';
     el.style.color = 'var(--veg)';
     el.style.border = '1px solid rgba(80,240,160,.3)';
@@ -539,12 +657,12 @@ function updateRemaining() {
     el.style.background = 'rgba(240,208,80,.1)';
     el.style.color = '#f0d050';
     el.style.border = '1px solid rgba(240,208,80,.3)';
-    el.textContent = `Falta asignar: $${remaining.toFixed(2)}`;
+    el.textContent = `Falta asignar: $${remaining}`;
   } else {
     el.style.background = 'var(--red-dim)';
     el.style.color = 'var(--red)';
     el.style.border = '1px solid rgba(240,80,80,.3)';
-    el.textContent = `Excede por: $${Math.abs(remaining).toFixed(2)}`;
+    el.textContent = `Excede por: $${Math.abs(remaining)}`;
   }
 }
 function togglePayerSection() {
@@ -564,15 +682,13 @@ function saveExpense() {
   if(!desc){ showToast('Ingresá una descripción'); return; }
   if(!amount||amount<=0){ showToast('Monto inválido'); return; }
   if(!ev.friends.length){ showToast('Agregá amigos primero'); return; }
-  const payers=[];
-  ev.friends.forEach(f=>{ const cb=document.getElementById('pc-'+f.id); if(cb&&cb.checked){ const amt=parseFloat(document.getElementById('pa-'+f.id).value)||0; if(amt>0) payers.push({friendId:f.id,name:f.name,paid:amt}); } });
-  if(!payers.length&&type!=='tip'){ showToast('Seleccioná quién pagó y cuánto'); return; }
+  const payers = currentPayers.slice();
+  if(!payers.length&&type!=='tip'){ showToast('Agregá quién pagó y cuánto'); return; }
   if(type !== 'tip') {
-    const sumPaid = Math.round(payers.reduce((s,p)=>s+p.paid,0)*100)/100;
-    const amtRound = Math.round(amount*100)/100;
-    if(Math.abs(sumPaid - amtRound) > 0.01) {
-      const diff = Math.round((amtRound - sumPaid)*100)/100;
-      showToast(diff > 0 ? `Falta asignar $${diff.toFixed(2)}` : `Excede por $${Math.abs(diff).toFixed(2)}`);
+    const sumPaid = payers.reduce((s,p)=>s+p.paid, 0);
+    const diff = Math.round(amount) - sumPaid;
+    if(Math.abs(diff) > 0) {
+      showToast(diff > 0 ? `Falta asignar $${diff}` : `Excede por $${Math.abs(diff)}`,'error');
       return;
     }
   }
@@ -600,7 +716,7 @@ function saveExpense() {
     showToast('✓ Gasto agregado');
   }
   document.getElementById('e-desc').value=''; document.getElementById('e-amt').value='';
-  ev.friends.forEach(f=>{ const cb=document.getElementById('pc-'+f.id),inp=document.getElementById('pa-'+f.id); if(cb){cb.checked=false;inp.disabled=true;inp.value='';} });
+  currentPayers=[]; refreshPayerUI();
   save(); renderExpenses();
 }
 function editExpense(id) {
@@ -621,10 +737,12 @@ function cancelEdit() {
   document.getElementById('exp-form-label').textContent='Registrar gasto';
   document.getElementById('save-exp-btn').textContent='+ Guardar gasto';
   document.getElementById('cancel-edit-btn').style.display='none';
-  document.getElementById('e-type').value='all'; togglePayerSection(); renderPayerForm();
+  document.getElementById('e-type').value='all'; currentPayers=[]; togglePayerSection(); renderPayerForm();
 }
 function deleteExpense(id) {
   const ev=getEvent(currentEventId);
+  const exp=ev.expenses.find(e=>e.id===id);
+  if(!confirm(`¿Eliminar "${exp.desc}"?`)) return;
   ev.expenses=ev.expenses.filter(e=>e.id!==id);
   if(editingExpenseId===id) cancelEdit();
   save(); renderExpenses(); showToast('Gasto eliminado');
@@ -632,8 +750,18 @@ function deleteExpense(id) {
 function renderExpenses() {
   const ev=getEvent(currentEventId), el=document.getElementById('expense-list-inner');
   if(!ev.expenses.length){ el.innerHTML='<div class="empty"><div class="empty-icon">🧾</div><div class="empty-text">Sin gastos todavía.</div></div>'; return; }
-  el.innerHTML=ev.expenses.map(e=>`
-    <div class="expense-item">
+  // Type counter badges
+  const typeCounts={};
+  ev.expenses.forEach(e=>{ typeCounts[e.type]=(typeCounts[e.type]||0)+1; });
+  const typeTotal=ev.expenses.reduce((s,e)=>s+e.amount,0);
+  const counterHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+
+    Object.entries(typeCounts).map(([t,c])=>
+      `<span style="font-size:10px;padding:3px 8px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted2);font-family:'Syne',sans-serif;font-weight:700">${TYPE_LABEL[t]||t}: ${c}</span>`
+    ).join('')+
+    `<span style="font-size:10px;padding:3px 8px;border-radius:20px;background:var(--accent-dim);border:1px solid rgba(184,240,80,.3);color:var(--accent);font-family:'Syne',sans-serif;font-weight:700;margin-left:auto">Total: $${Math.round(typeTotal)}</span>`+
+  '</div>';
+  el.innerHTML=counterHtml+ev.expenses.map(e=>`
+    <div class="expense-item" data-expense-id="${e.id}">
       <div class="expense-top">
         <div>
           <div class="expense-desc">${e.desc}</div>
@@ -653,30 +781,41 @@ function renderExpenses() {
 // RESULT CALCULATION
 // ════════════════════════════════
 function calcResult(ev) {
-  const owes={}, paid={}, rawOwes={};
-  (ev.friends||[]).forEach(f=>{ owes[f.id]=0; paid[f.id]=0; rawOwes[f.id]=0; });
+  const owes={}, paid={}, rawOwes={}, tipOwes={};
+  (ev.friends||[]).forEach(f=>{ owes[f.id]=0; paid[f.id]=0; rawOwes[f.id]=0; tipOwes[f.id]=0; });
+  const validIds = new Set((ev.friends||[]).map(f=>f.id));
 
   (ev.expenses||[]).forEach(e=>{
     const n = e.applicable.length;
     const exact = e.amount / n;
     const floor = Math.floor(exact);
-    const remainder = Math.round((e.amount - floor * n)); // extra pesos to distribute
+    const remainder = Math.round((e.amount - floor * n));
 
-    // assign floored share to everyone, then add 1 to the first `remainder` people
-    e.applicable.forEach((fid, idx)=>{
-      const share = floor + (idx < remainder ? 1 : 0);
-      rawOwes[fid] = (rawOwes[fid]||0) + share;
-    });
-    e.payers.forEach(p=>{ paid[p.friendId]=(paid[p.friendId]||0)+p.paid; });
+    if(e.type === 'tip') {
+      // Tips have no payer — tracked separately, not part of transfer flow
+      e.applicable.filter(fid=>validIds.has(fid)).forEach((fid, idx)=>{
+        const share = floor + (idx < remainder ? 1 : 0);
+        tipOwes[fid] = (tipOwes[fid]||0) + share;
+        rawOwes[fid] = (rawOwes[fid]||0) + share;
+      });
+    } else {
+      e.applicable.filter(fid=>validIds.has(fid)).forEach((fid, idx)=>{
+        const share = floor + (idx < remainder ? 1 : 0);
+        rawOwes[fid] = (rawOwes[fid]||0) + share;
+      });
+      e.payers.filter(p=>validIds.has(p.friendId)).forEach(p=>{ paid[p.friendId]=(paid[p.friendId]||0)+p.paid; });
+    }
   });
 
-  // round paid too (payers enter exact amounts, but we round for display/transfer)
   (ev.friends||[]).forEach(f=>{ owes[f.id] = rawOwes[f.id]||0; });
 
+  // Balance excludes tips — tips are owed "to the pot", not to any person
   const balance={};
-  (ev.friends||[]).forEach(f=>{ balance[f.id] = Math.round((paid[f.id]||0)) - (owes[f.id]||0); });
+  (ev.friends||[]).forEach(f=>{
+    balance[f.id] = Math.round((paid[f.id]||0)) - ((owes[f.id]||0) - (tipOwes[f.id]||0));
+  });
 
-  // greedy transfers (all integer amounts)
+  // greedy transfers
   const cr=(ev.friends||[]).filter(f=>balance[f.id]>0).map(f=>({id:f.id,name:f.name,amount:balance[f.id]}));
   const dr=(ev.friends||[]).filter(f=>balance[f.id]<0).map(f=>({id:f.id,name:f.name,amount:-balance[f.id]}));
   const transfers=[]; let ci=0,di=0;
@@ -686,12 +825,12 @@ function calcResult(ev) {
     cr[ci].amount-=t; dr[di].amount-=t;
     if(cr[ci].amount<=0)ci++; if(dr[di].amount<=0)di++;
   }
-  return {owes,paid,balance,transfers};
+  return {owes,paid,balance,transfers,tipOwes};
 }
 function renderResult() {
   const ev=getEvent(currentEventId), el=document.getElementById('result-inner');
   if(!ev.friends.length||!ev.expenses.length){ el.innerHTML='<div class="empty"><div class="empty-icon">💰</div><div class="empty-text">Agregá amigos y gastos para ver el resultado.</div></div>'; return; }
-  const {owes,paid,balance,transfers}=calcResult(ev);
+  const {owes,paid,balance,transfers,tipOwes}=calcResult(ev);
   const total=Math.round(ev.expenses.reduce((s,e)=>s+e.amount,0));
   let html=`<div class="summary-card">
     <div class="summary-row"><span>Gasto total</span><span class="val" style="color:var(--accent)">$${total}</span></div>
@@ -739,10 +878,12 @@ function renderResult() {
       </div>
       <div class="rp-rows">
         <div class="rp-row"><span>Le corresponde pagar</span><span>$${owes[f.id]||0}</span></div>
+        ${tipOwes[f.id]>0?`<div class="rp-row"><span style="color:#f0d050">↳ incl. propina/bono</span><span style="color:#f0d050">$${tipOwes[f.id]}</span></div>`:''}
         <div class="rp-row"><span>Pagó</span><span>$${Math.round(paid[f.id]||0)}</span></div>
         ${aliasRow}
       </div>
       <div class="rp-total"><span class="rp-label ${cls}">${lbl}</span><span class="rp-amount ${cls}">$${Math.abs(b)}</span></div>
+      ${tipOwes[f.id]>0?`<div style="margin-top:8px;padding:8px 10px;background:rgba(240,208,80,.08);border:1px solid rgba(240,208,80,.2);border-radius:var(--r-sm);font-size:11px;color:#f0d050">🤝 $${tipOwes[f.id]} de propina/bono — aportá directo al pozo</div>`:''} 
     </div>`;
   });
   if(transfers.length){
@@ -944,11 +1085,16 @@ function exportMatrixImage() {
 // TOAST
 // ════════════════════════════════
 let toastTimer;
-function showToast(msg) {
+function showToast(msg, type='success') {
   const el=document.getElementById('toast');
   el.textContent=msg; el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+  // Haptic feedback
+  if(navigator.vibrate) {
+    if(type==='error') navigator.vibrate([10,50,10]);
+    else navigator.vibrate(8);
+  }
 }
 
 // ════════════════════════════════
