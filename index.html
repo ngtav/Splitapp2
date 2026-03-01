@@ -1277,6 +1277,7 @@ function setSyncDot(state) {
 
 async function pushEvent(ev) {
   if(!firebaseReady) return;
+  isPushing = true;
   setSyncDot('saving');
   try {
     await fbDatabase.ref('spliteat/events/' + ev.id).set(JSON.parse(JSON.stringify(ev)));
@@ -1284,6 +1285,8 @@ async function pushEvent(ev) {
   } catch(e) {
     setSyncDot('error');
     console.warn('Firebase push error:', e);
+  } finally {
+    isPushing = false;
   }
 }
 
@@ -1293,6 +1296,7 @@ function startSync(ev) {
   syncEventId = ev.id;
   setSyncDot('saving');
   syncListener = fbDatabase.ref('spliteat/events/' + ev.id).on('value', snapshot => {
+    if(isPushing) return; // skip stale update during our own push
     const data = snapshot.val();
     if(!data) { setSyncDot('synced'); return; }
     const idx = db.events.findIndex(e => e.id === data.id);
@@ -1323,10 +1327,12 @@ function stopSync() {
 }
 
 let globalSyncListener = null;
+let isPushing = false;
 function startGlobalSync() {
   if(!firebaseReady) return;
   if(globalSyncListener) fbDatabase.ref('spliteat/events').off('value', globalSyncListener);
   globalSyncListener = fbDatabase.ref('spliteat/events').on('value', snapshot => {
+    if(isPushing) return; // skip stale update during our own push
     if(!snapshot.exists()) {
       db.events = [];
       save();
