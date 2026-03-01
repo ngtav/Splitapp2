@@ -545,7 +545,7 @@ function switchInnerTab(name,btn) {
     document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',i===idx+1));
   }
   if(name==='amigos') renderFriends();
-  if(name==='gastos'){ renderPayerForm(); renderExpenses(); togglePayerSection(); }
+  if(name==='gastos'){ if(!editingExpenseId) renderPayerForm(null); renderExpenses(); togglePayerSection(); }
   if(name==='resultado') renderResult();
 }
 
@@ -640,7 +640,12 @@ function renderFriends() {
 let currentPayers = [];
 
 function renderPayerForm(editData) {
-  currentPayers = editData ? JSON.parse(JSON.stringify(editData.payers||[])) : [];
+  // editData=undefined → preserve currentPayers (called from sync)
+  // editData=null → reset (cancel/new expense)
+  // editData={...} → load expense payers (edit mode)
+  if(editData !== undefined) {
+    currentPayers = editData ? JSON.parse(JSON.stringify(editData.payers||[])) : [];
+  }
   refreshPayerUI();
 }
 
@@ -824,7 +829,8 @@ function saveExpense() {
     showToast('✓ Gasto agregado');
   }
   document.getElementById('e-desc').value=''; document.getElementById('e-amt').value='';
-  currentPayers=[]; refreshPayerUI();
+  currentPayers=[];
+  renderPayerForm(null);
   save();
   if(currentEventId) pushEvent(getEvent(currentEventId));
   renderExpenses();
@@ -847,7 +853,10 @@ function cancelEdit() {
   document.getElementById('exp-form-label').textContent='Registrar gasto';
   document.getElementById('save-exp-btn').textContent='+ Guardar gasto';
   document.getElementById('cancel-edit-btn').style.display='none';
-  document.getElementById('e-type').value='all'; currentPayers=[]; togglePayerSection(); renderPayerForm();
+  document.getElementById('e-type').value='all';
+  currentPayers=[];
+  togglePayerSection();
+  renderPayerForm(null); // explicit null = reset
 }
 function deleteExpense(id) {
   const ev=getEvent(currentEventId);
@@ -1293,9 +1302,13 @@ function startSync(ev) {
     if(currentEventId === data.id) {
       document.getElementById('ev-title').textContent = data.name;
       const activePane = document.querySelector('.tab-pane.active')?.id;
-      if(activePane === 'pane-amigos')    renderFriends();
-      if(activePane === 'pane-gastos')    { renderPayerForm(); renderExpenses(); }
-      if(activePane === 'pane-resultado') renderResult();
+      const activeEl = document.activeElement;
+      const userTyping = activeEl && (activeEl.tagName==='INPUT' || activeEl.tagName==='TEXTAREA' || activeEl.tagName==='SELECT');
+      if(!userTyping) {
+        if(activePane === 'pane-amigos')    renderFriends();
+        if(activePane === 'pane-gastos')    renderExpenses(); // don't reset payer form
+        if(activePane === 'pane-resultado') renderResult();
+      }
     }
     setSyncDot('synced');
   }, err => { setSyncDot('error'); console.warn('Sync error:', err); });
@@ -1315,7 +1328,6 @@ function startGlobalSync() {
   if(globalSyncListener) fbDatabase.ref('spliteat/events').off('value', globalSyncListener);
   globalSyncListener = fbDatabase.ref('spliteat/events').on('value', snapshot => {
     if(!snapshot.exists()) {
-      // All events deleted
       db.events = [];
       save();
       if(document.getElementById('view-home').classList.contains('active')) _renderHomeInner();
@@ -1327,8 +1339,8 @@ function startGlobalSync() {
     const maxId = remoteEvents.reduce((m,e)=>Math.max(m,e.id),0);
     if(maxId >= db.nextEventId) db.nextEventId = maxId + 1;
     save();
-    // Re-render current view
-    if(document.getElementById('view-home').classList.contains('active')) _renderHomeInner();
+    const onHome = document.getElementById('view-home').classList.contains('active');
+    if(onHome) { _renderHomeInner(); setSyncDot('synced'); return; }
     if(currentEventId) {
       // If current event was deleted, go home
       if(!db.events.find(e=>e.id===currentEventId)) {
@@ -1336,9 +1348,14 @@ function startGlobalSync() {
         goHome(); return;
       }
       const activePane = document.querySelector('.tab-pane.active')?.id;
-      if(activePane === 'pane-amigos')    renderFriends();
-      if(activePane === 'pane-gastos')    renderExpenses();
-      if(activePane === 'pane-resultado') renderResult();
+      // Don't re-render if user is actively typing in a form
+      const activeEl = document.activeElement;
+      const userTyping = activeEl && (activeEl.tagName==='INPUT' || activeEl.tagName==='TEXTAREA' || activeEl.tagName==='SELECT');
+      if(!userTyping) {
+        if(activePane === 'pane-amigos')    renderFriends();
+        if(activePane === 'pane-gastos')    renderExpenses();
+        if(activePane === 'pane-resultado') renderResult();
+      }
     }
     setSyncDot('synced');
   }, err => { setSyncDot('error'); });
