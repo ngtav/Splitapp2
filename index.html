@@ -841,7 +841,7 @@ function exportMatrixImage() {
   const PRH = profiles.length ? (20 + profiles.length * PH + 16) : 0; // total profile section height
 
   const CW=110,CH=44,HW=120,PAD=24,TH=72,AH=46,FH=30;
-  const W=PAD*2+HW+CW*n, H=PAD*2+TH+CH*(n+1)+AH+PRH+FH;
+  const BCW=90; const W=PAD*2+HW+CW*n+BCW, H=PAD*2+TH+CH*(n+1)+AH+PRH+FH;
   const canvas=document.getElementById('matrix-canvas');
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
@@ -860,6 +860,7 @@ function exportMatrixImage() {
   }
   dc(SX,SY,HW,CH,'#13131a','Paga ↓ / Recibe →','#6868a0',true,11);
   friends.forEach((f,ci)=>dc(SX+HW+ci*CW,SY,CW,CH,'#1a1a2e',f.name,'#b8f050',true,12));
+  dc(SX+HW+CW*n,SY,BCW,CH,'#1a1a2e','Balance','#50c8f0',true,12);
   friends.forEach((payer,ri)=>{
     const y=SY+CH*(ri+1); dc(SX,y,HW,CH,'#1a1a2e',payer.name,'#b8f050',true,12);
     friends.forEach((rec,ci)=>{
@@ -868,11 +869,17 @@ function exportMatrixImage() {
       const t=transfers.find(t=>t.from===payer.name&&t.to===rec.name);
       t?dc(x,y,CW,CH,'#0f2010','$'+t.amount,'#50f0a0',true,13):dc(x,y,CW,CH,'#111118','$0','#3a3a52',false,12);
     });
+    // Balance column
+    const b=balance[payer.id];
+    const bcol = b>0?'#0f2010':b<0?'#1a0808':'#111118';
+    const btc  = b>0?'#50f0a0':b<0?'#f05050':'#3a3a52';
+    const blbl = b>0?'+$'+b:b<0?'-$'+Math.abs(b):'$0';
+    dc(SX+HW+CW*n,y,BCW,CH,bcol,blbl,btc,true,13);
   });
 
   // ── Alias row ──
   const AY=SY+CH*(n+1)+8;
-  ctx.fillStyle='#2c2c3e'; ctx.fillRect(SX,AY,HW+CW*n,1);
+  ctx.fillStyle='#2c2c3e'; ctx.fillRect(SX,AY,HW+CW*n+BCW,1);
   ctx.fillStyle='#6868a0'; ctx.font='bold 10px Arial'; ctx.textAlign='left'; ctx.textBaseline='middle';
   ctx.fillText('ALIAS / CVU',SX+8,AY+20);
   friends.forEach((f,ci)=>{
@@ -885,7 +892,7 @@ function exportMatrixImage() {
   // ── Profile breakdown section ──
   if(profiles.length) {
     const BY = AY + AH;
-    ctx.fillStyle='#2c2c3e'; ctx.fillRect(SX, BY, HW+CW*n, 1);
+    ctx.fillStyle='#2c2c3e'; ctx.fillRect(SX, BY, HW+CW*n+BCW, 1);
     ctx.fillStyle='#6868a0'; ctx.font='bold 10px Arial'; ctx.textAlign='left'; ctx.textBaseline='middle';
     ctx.fillText('LO QUE LE CORRESPONDE PAGAR POR PERFIL', SX+8, BY+14);
     profiles.forEach((p, i) => {
@@ -895,7 +902,7 @@ function exportMatrixImage() {
       const perPerson = owes[members[0].id] || 0;
       const names = members.map(f=>f.name).join(', ');
       const rowY = BY + 20 + i * PH;
-      const rowW = HW + CW * n;
+      const rowW = HW + CW * n + BCW;
       // row background alternate
       ctx.fillStyle = i%2===0 ? '#13131a' : '#0f0f18';
       ctx.fillRect(SX+1, rowY+1, rowW-2, PH-2);
@@ -919,11 +926,11 @@ function exportMatrixImage() {
 
   // ── Footer legend ──
   const FY = AY + AH + PRH;
-  ctx.fillStyle='#2c2c3e'; ctx.fillRect(SX, FY, HW+CW*n, 1);
+  ctx.fillStyle='#2c2c3e'; ctx.fillRect(SX, FY, HW+CW*n+BCW, 1);
   ctx.fillStyle='#6868a0'; ctx.font='11px Arial'; ctx.textAlign='left'; ctx.textBaseline='middle';
   ctx.fillText('🟢 transferencia a realizar   |   — mismo usuario   |   $0 sin deuda', SX, FY+16);
   ctx.fillStyle='#b8f050'; ctx.font='bold 11px Arial'; ctx.textAlign='right';
-  ctx.fillText('SplitEat', SX+HW+CW*n, FY+16);
+  ctx.fillText('SplitEat', SX+HW+CW*n+BCW-4, FY+16);
   canvas.style.display='block';
   const dataUrl=canvas.toDataURL('image/png');
   canvas.style.display='none';
