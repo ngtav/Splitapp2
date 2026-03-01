@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>SplitEat — Dividí la cuenta</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -483,7 +486,9 @@ function saveEvent() {
     const ev=getEvent(parseInt(eid)); ev.name=name; ev.date=date; ev.description=desc;
     pushEvent(ev);
   } else {
-    db.events.push({id:db.nextEventId++,name,date,description:desc,friends:[],expenses:[],nextFriendId:1,nextExpenseId:1});
+    const newEv={id:db.nextEventId++,name,date,description:desc,friends:[],expenses:[],nextFriendId:1,nextExpenseId:1};
+    db.events.push(newEv);
+    pushEvent(newEv);
   }
   save(); closeEventModalDirect(); renderHome();
   showToast(eid?'✓ Evento actualizado':'✓ Evento creado');
@@ -508,7 +513,10 @@ function cloneEvent(id,e) {
   nev.id=db.nextEventId++; nev.name=src.name+' (copia)';
   nev.date=new Date().toISOString().slice(0,10);
   nev.expenses=[]; nev.nextExpenseId=1;
-  db.events.push(nev); save(); renderHome(); showToast('✓ Evento clonado (sin gastos)');
+  db.events.push(nev);
+  save();
+  pushEvent(nev);
+  renderHome(); showToast('✓ Evento clonado (sin gastos)');
 }
 function closeEventModal(e){ if(e.target===document.getElementById('modal-event')) closeEventModalDirect(); }
 function closeEventModalDirect(){ document.getElementById('modal-event').classList.remove('open'); }
