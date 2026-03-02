@@ -148,33 +148,82 @@ select option { background:#1a1a24; }
 <body>
 
 <!-- ══ LOGIN ══ -->
-<div class="view active" id="view-login" style="flex-direction:column;justify-content:center;min-height:100vh;padding:32px 24px">
-  <div style="text-align:center;margin-bottom:36px">
-    <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800;letter-spacing:-1.5px">Split<span style="color:var(--accent)">Eat</span> <span style="font-size:28px">🍽️</span></div>
-    <div style="font-size:13px;color:var(--muted2);margin-top:6px">Dividí la cuenta entre amigos</div>
+<div class="view active" id="view-login" style="flex-direction:column;justify-content:center;min-height:100vh;padding:24px 20px;box-sizing:border-box">
+
+  <!-- Logo -->
+  <div style="text-align:center;margin-bottom:24px">
+    <div style="font-family:'Syne',sans-serif;font-size:32px;font-weight:800;letter-spacing:-1px">Split<span style="color:var(--accent)">Eat</span> <span style="font-size:24px">🍽️</span></div>
+    <div style="font-size:12px;color:var(--muted2);margin-top:4px">Dividí la cuenta entre amigos</div>
   </div>
 
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px">
-    <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--accent);margin-bottom:14px;text-transform:uppercase;letter-spacing:.08em">👑 Acceso Admin</div>
-    <div class="field" style="margin-bottom:10px">
-      <input type="password" id="login-admin-pwd" placeholder="Contraseña de administrador"
-        onkeydown="if(event.key==='Enter')loginAdmin()">
+  <!-- Tab switcher -->
+  <div style="display:flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px;margin-bottom:16px;gap:4px">
+    <button id="login-tab-guest" onclick="switchLoginTab('guest')"
+      style="flex:1;padding:9px;border:none;border-radius:calc(var(--r) - 4px);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;background:var(--accent);color:#0a0a0f">
+      👤 Invitado
+    </button>
+    <button id="login-tab-admin" onclick="switchLoginTab('admin')"
+      style="flex:1;padding:9px;border:none;border-radius:calc(var(--r) - 4px);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;background:transparent;color:var(--muted2)">
+      👑 Admin
+    </button>
+  </div>
+
+  <!-- Guest panel -->
+  <div id="login-panel-guest" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+    <div class="row2" style="margin-bottom:10px">
+      <div class="field" style="margin-bottom:0">
+        <label>Tu nombre <span style="color:var(--red)">*</span></label>
+        <input type="text" id="login-guest-name" placeholder="Ej: Martina" maxlength="22"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-guest-alias').focus()">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>Alias CVU <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+        <input type="text" id="login-guest-alias" placeholder="mi.alias" maxlength="40"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-guest-code').focus()">
+      </div>
     </div>
-    <button class="btn btn-primary" onclick="loginAdmin()">Entrar como Admin</button>
-  </div>
-
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px">
-    <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--muted2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.08em">👤 Acceso Invitado</div>
-    <div class="field" style="margin-bottom:10px">
-      <input type="text" id="login-guest-code" placeholder="Código de acceso"
-        maxlength="12" style="text-transform:uppercase;letter-spacing:3px;font-size:18px;font-family:'Syne',sans-serif;font-weight:700;text-align:center"
+    <div class="row2" style="margin-bottom:10px">
+      <div class="field" style="margin-bottom:0">
+        <label>Dieta</label>
+        <select id="login-guest-diet">
+          <option value="meat">🥩 Come carne</option>
+          <option value="veg">🥗 Vegetariano/a</option>
+          <option value="none">🚫 No come</option>
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>Bebida</label>
+        <select id="login-guest-alc">
+          <option value="yes">🍺 Toma alcohol</option>
+          <option value="no">🧃 No toma alcohol</option>
+          <option value="none">💧 No toma nada</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Código de acceso <span style="color:var(--red)">*</span></label>
+      <input type="text" id="login-guest-code" placeholder="CÓDIGO"
+        maxlength="12" style="text-transform:uppercase;letter-spacing:4px;font-size:20px;font-family:'Syne',sans-serif;font-weight:800;text-align:center"
         oninput="this.value=this.value.toUpperCase()"
         onkeydown="if(event.key==='Enter')loginGuest()">
     </div>
-    <button class="btn btn-ghost" onclick="loginGuest()">Entrar con código</button>
+    <button class="btn btn-primary" onclick="loginGuest()" style="font-size:15px;padding:13px">Entrar →</button>
   </div>
 
-  <div id="login-error" style="display:none;margin-top:14px;text-align:center;font-size:13px;color:var(--red);padding:10px;background:var(--red-dim);border-radius:var(--r-sm)"></div>
+  <!-- Admin panel -->
+  <div id="login-panel-admin" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+    <div class="field" style="margin-bottom:12px">
+      <label>Contraseña</label>
+      <div style="position:relative">
+        <input type="password" id="login-admin-pwd" placeholder="Contraseña de administrador"
+          onkeydown="if(event.key==='Enter')loginAdmin()" style="padding-right:40px;width:100%;box-sizing:border-box">
+        <button type="button" onclick="togglePwd('login-admin-pwd',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted2);cursor:pointer;font-size:16px;padding:0;line-height:1">👁</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="loginAdmin()" style="font-size:15px;padding:13px">Entrar como Admin →</button>
+  </div>
+
+  <div id="login-error" style="display:none;margin-top:12px;text-align:center;font-size:12px;color:var(--red);padding:10px;background:var(--red-dim);border-radius:var(--r-sm)"></div>
 </div>
 
 <!-- ══ HOME ══ -->
@@ -188,7 +237,9 @@ select option { background:#1a1a24; }
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
         <span id="role-badge" style="font-size:11px;font-family:'Syne',sans-serif;font-weight:700"></span>
         <div style="display:flex;gap:6px">
-          <button onclick="openAccessCodeModal()" class="admin-only icon-btn" title="Cambiar código de acceso" style="font-size:13px">🔑</button>
+          <button onclick="openAccessCodeModal()" class="admin-only icon-btn" title="Cambiar código de invitados" style="font-size:13px">🔑</button>
+          <button onclick="openAdminPwdModal()" class="admin-only icon-btn" title="Cambiar contraseña admin" style="font-size:13px">🔐</button>
+          <button onclick="openFriendsBaseModal()" class="admin-only icon-btn" title="Base de amigos" style="font-size:16px">👥</button>
           <button onclick="logout()" class="icon-btn" title="Cerrar sesión" style="font-size:13px">↩</button>
         </div>
       </div>
@@ -220,17 +271,39 @@ select option { background:#1a1a24; }
   </div>
 
   <div class="tab-pane active" id="pane-amigos">
+    <!-- Picker desde base (solo admin) -->
+    <div class="card" id="friends-from-base-card" style="display:none;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="card-label" style="margin-bottom:0">Agregar desde base</div>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="openFriendsBaseModal()">⚙️ Gestionar</button>
+      </div>
+      <div id="friends-base-picker"><div style="font-size:12px;color:var(--muted2)">Cargando…</div></div>
+    </div>
+    <!-- Form manual -->
     <div class="card">
-      <div class="card-label">Agregar amigo</div>
+      <div class="card-label">Agregar manualmente</div>
       <div class="row2">
         <div class="field"><label>Nombre</label><input type="text" id="f-name" placeholder="Ej: Martina" maxlength="22"></div>
         <div class="field"><label>Alias CVU <span style="color:var(--muted);font-weight:400">(opcional)</span></label><input type="text" id="f-alias" placeholder="mi.alias" maxlength="40"></div>
       </div>
       <div class="row2">
         <div class="field"><label>Dieta</label><select id="f-diet"><option value="meat">🥩 Come carne</option><option value="veg">🥗 Vegetariano/a</option><option value="none">🚫 No come</option></select></div>
-        <div class="field"><label>Alcohol</label><select id="f-alc"><option value="yes">🍺 Toma</option><option value="no">🧃 No toma</option></select></div>
+        <div class="field"><label>Bebida</label><select id="f-alc"><option value="yes">🍺 Toma alcohol</option><option value="no">🧃 No toma alcohol</option>
+          <option value="none">💧 No toma nada</option></select></div>
       </div>
-      <button class="btn btn-primary" onclick="addFriend()">+ Agregar</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-primary" onclick="addFriend()">+ Agregar</button>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted2);cursor:pointer">
+            <input type="checkbox" id="f-is-venue" style="accent-color:#f0b840" onchange="toggleVenueFields()">
+            <span>🏪 Es un lugar</span>
+          </label>
+          <label id="save-to-base-label" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--muted2);cursor:pointer">
+            <input type="checkbox" id="f-save-to-base" style="accent-color:var(--accent)">
+            Guardar en base
+          </label>
+        </div>
+      </div>
     </div>
     <div id="friends-list-inner"></div>
   </div>
@@ -247,7 +320,8 @@ select option { background:#1a1a24; }
             <option value="food-meat">🥩 Solo carnívoros</option>
             <option value="food-veg">🥗 Solo veggie</option>
             <option value="alcohol">🍺 Solo alcohol (incluso no comen)</option>
-            <option value="no-alcohol">🧃 Sin alcohol</option>
+            <option value="no-alcohol">🧃 No toma alcohol</option>
+          <option value="none">💧 No toma nada</option>
             <option value="all">👥 Gasto general (todos sin excepción)</option>
             <option value="tip">🤝 Propina / Bono</option>
           </select>
@@ -335,6 +409,73 @@ select option { background:#1a1a24; }
 
 <div class="toast" id="toast"></div>
 
+<!-- ══ MODAL: CONFIRM ══ -->
+<div class="modal-bg" id="modal-confirm" onclick="if(event.target===this)_confirmReject()">
+  <div class="modal" style="max-width:320px">
+    <div class="modal-handle"></div>
+    <div id="modal-confirm-msg" style="font-size:15px;font-weight:500;line-height:1.5;margin-bottom:20px;text-align:center;padding:0 8px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="_confirmReject()" id="modal-confirm-cancel">Cancelar</button>
+      <button class="btn btn-danger" onclick="_confirmAccept()" id="modal-confirm-ok">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: FRIENDS BASE ══ -->
+<div class="modal-bg" id="modal-friends-base" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">👥 Base de amigos</div>
+    <p style="font-size:12px;color:var(--muted2);margin-bottom:12px;line-height:1.5">Lista habitual de amigos. El admin la gestiona acá y cualquiera puede agregarlos a un evento con un toque.</p>
+    <div id="friends-base-list" style="margin-bottom:12px;max-height:220px;overflow-y:auto"></div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
+      <div style="font-size:11px;font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em">+ Nuevo amigo en la base</div>
+      <div class="row2" style="margin-bottom:8px">
+        <div class="field" style="margin-bottom:0"><input type="text" id="fb-name" placeholder="Nombre" maxlength="22"></div>
+        <div class="field" style="margin-bottom:0"><input type="text" id="fb-alias" placeholder="Alias CVU" maxlength="40"></div>
+      </div>
+      <div class="row2" style="margin-bottom:8px">
+        <div class="field" style="margin-bottom:0">
+          <select id="fb-diet"><option value="meat">🥩 Carne</option><option value="veg">🥗 Veggie</option><option value="none">🚫 No come</option></select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <select id="fb-alc"><option value="yes">🍺 Toma alcohol</option><option value="no">🧃 No toma alcohol</option>
+          <option value="none">💧 No toma nada</option></select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addToFriendsBase()" style="padding:8px 14px;font-size:12px">+ Agregar a base</button>
+    </div>
+    <button class="btn btn-ghost" onclick="document.getElementById('modal-friends-base').classList.remove('open')">Cerrar</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: ADMIN PASSWORD ══ -->
+<div class="modal-bg" id="modal-admin-pwd" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔐 Cambiar contraseña de admin</div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Contraseña actual</label>
+      <div style="padding-right:40px;width:100%;box-sizing:border-box;position:relative"><input type="password" id="admin-pwd-current" placeholder="Contraseña actual"><button type="button" onclick="togglePwd('admin-pwd-current',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted2);cursor:pointer;font-size:16px;padding:0;line-height:1">👁</button></div>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Nueva contraseña</label>
+      <div style="padding-right:40px;width:100%;box-sizing:border-box;position:relative"><input type="password" id="admin-pwd-new" placeholder="Nueva contraseña (mín. 6 caracteres)"
+        onkeydown="if(event.key==='Enter')saveAdminPassword()"><button type="button" onclick="togglePwd('admin-pwd-new',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted2);cursor:pointer;font-size:16px;padding:0;line-height:1">👁</button></div>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Confirmar nueva contraseña</label>
+      <div style="padding-right:40px;width:100%;box-sizing:border-box;position:relative"><input type="password" id="admin-pwd-confirm" placeholder="Repetí la nueva contraseña"
+        onkeydown="if(event.key==='Enter')saveAdminPassword()"><button type="button" onclick="togglePwd('admin-pwd-confirm',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted2);cursor:pointer;font-size:16px;padding:0;line-height:1">👁</button></div>
+    </div>
+    <div id="admin-pwd-error" style="display:none;font-size:12px;color:var(--red);margin-bottom:10px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-admin-pwd').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveAdminPassword()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL: ACCESS CODE ══ -->
 <div class="modal-bg" id="modal-access-code" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
@@ -371,7 +512,8 @@ select option { background:#1a1a24; }
     </div>
     <div class="row2">
       <div class="field"><label>Dieta</label><select id="ef-diet"><option value="meat">🥩 Come carne</option><option value="veg">🥗 Vegetariano/a</option><option value="none">🚫 No come</option></select></div>
-      <div class="field"><label>Alcohol</label><select id="ef-alc"><option value="yes">🍺 Toma</option><option value="no">🧃 No toma</option></select></div>
+      <div class="field"><label>Bebida</label><select id="ef-alc"><option value="yes">🍺 Toma alcohol</option><option value="no">🧃 No toma alcohol</option>
+          <option value="none">💧 No toma nada</option></select></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="document.getElementById('modal-edit-friend').classList.remove('open')">Cancelar</button>
@@ -415,6 +557,7 @@ function goHome() {
   stopSync();
   currentEventId=null; editingExpenseId=null;
   document.title = 'SplitEat — Dividí la cuenta';
+  if(!currentRole) { showView('view-login'); return; }
   showView('view-home'); renderHome();
 }
 
@@ -495,9 +638,9 @@ function saveEvent() {
   save(); closeEventModalDirect(); renderHome();
   showToast(eid?'✓ Evento actualizado':'✓ Evento creado');
 }
-function deleteEvent(id,e) {
+async function deleteEvent(id,e) {
   e.stopPropagation();
-  if(!confirm('¿Eliminar este evento?')) return;
+  if(!await showConfirm('¿Eliminar este evento?')) return;
   db.events=db.events.filter(ev=>ev.id!==id);
   save();
   // Remove from Firebase
@@ -548,23 +691,56 @@ function switchInnerTab(name,btn) {
   }
   if(name==='amigos') renderFriends();
   if(name==='gastos'){ if(!editingExpenseId) renderPayerForm(null); renderExpenses(); togglePayerSection(); }
+  if(name==='amigos' && currentRole==='admin'){
+    renderFriendsBasePicker();
+    const lbl = document.getElementById('save-to-base-label');
+    if(lbl) lbl.style.display = 'flex';
+  }
   if(name==='resultado') renderResult();
 }
 
 // ════════════════════════════════
 // FRIENDS
 // ════════════════════════════════
-function addFriend() {
+function toggleVenueFields() {
+  const isVenue = document.getElementById('f-is-venue').checked;
+  const dietRow = document.querySelector('#pane-amigos .row2:nth-child(3)');
+  if(dietRow) dietRow.style.display = isVenue ? 'none' : '';
+  const saveBase = document.getElementById('save-to-base-label');
+  if(saveBase) saveBase.style.display = isVenue ? 'none' : (currentRole==='admin' ? 'flex' : 'none');
+}
+
+async function addFriend() {
   const name=document.getElementById('f-name').value.trim();
   if(!name){ showToast('Ingresá un nombre'); return; }
   const ev=getEvent(currentEventId);
   if(!ev){ showToast('Error: no hay evento activo'); return; }
   const alias=document.getElementById('f-alias').value.trim();
-  ev.friends.push({id:ev.nextFriendId++,name,alias,diet:document.getElementById('f-diet').value,alcohol:document.getElementById('f-alc').value});
+  const diet=document.getElementById('f-diet').value;
+  const alc=document.getElementById('f-alc').value;
+  const isVenue = document.getElementById('f-is-venue')?.checked || false;
+  ev.friends.push({id:ev.nextFriendId++,name,alias,diet,alcohol:alc, ...(isVenue?{isVenue:true}:{})});
+  if(isVenue) document.getElementById('f-is-venue').checked = false;
   document.getElementById('f-name').value=''; document.getElementById('f-alias').value='';
   save();
   pushEvent(getEvent(currentEventId));
-  renderFriends(); showToast('✓ '+name+' agregado/a');
+  renderFriends();
+  // Save to base if checkbox checked
+  const saveToBase = document.getElementById('f-save-to-base');
+  if(saveToBase && saveToBase.checked) {
+    await loadFriendsBase();
+    if(!cachedFriendsBase.find(f=>f.name.toLowerCase()===name.toLowerCase())) {
+      cachedFriendsBase.push({name, alias, diet, alcohol: alc});
+      await saveFriendsBaseToFb();
+      showToast('✓ '+name+' agregado/a al evento y a la base');
+    } else {
+      showToast('✓ '+name+' agregado/a');
+    }
+    saveToBase.checked = false;
+    renderFriendsBasePicker();
+  } else {
+    showToast('✓ '+name+' agregado/a');
+  }
 }
 function editFriend(id) {
   const ev=getEvent(currentEventId), f=ev.friends.find(fr=>fr.id===id);
@@ -595,13 +771,13 @@ function saveEditFriend() {
   document.getElementById('modal-edit-friend').classList.remove('open');
   showToast('✓ '+name+' actualizado/a');
 }
-function removeFriend(id) {
+async function removeFriend(id) {
   const ev=getEvent(currentEventId);
   const fname = ev.friends.find(f=>f.id===id)?.name || 'esta persona';
   const hasExpenses = ev.expenses.some(e=>
     e.applicable.includes(id) || e.payers.some(p=>p.friendId===id)
   );
-  if(hasExpenses && !confirm(`${fname} tiene gastos asociados. Si la eliminás, esos gastos se recalcularán sin ella. ¿Continuar?`)) return;
+  if(hasExpenses && !await showConfirm(`${fname} tiene gastos asociados. Si la eliminás, esos gastos se recalcularán sin ella. ¿Continuar?`)) return;
   ev.friends = ev.friends.filter(f=>f.id!==id);
   // Clean up expenses: remove from applicable and payers
   ev.expenses.forEach(e=>{
@@ -625,7 +801,7 @@ function renderFriends() {
         <div class="friend-name">${f.name}</div>
         <div class="tags">
           ${f.diet==='veg'?'<span class="tag tag-veg">🥗 Veggie</span>':f.diet==='none'?'<span class="tag tag-noalc">🚫 No come</span>':'<span class="tag tag-meat">🥩 Carne</span>'}
-          ${f.alcohol==='yes'?'<span class="tag tag-alc">🍺 Alcohol</span>':'<span class="tag tag-noalc">🧃 Sin alcohol</span>'}
+          ${f.alcohol==='yes'?'<span class="tag tag-alc">🍺 Toma alcohol</span>':f.alcohol==='none'?'<span class="tag tag-noalc">💧 No toma nada</span>':'<span class="tag tag-noalc">🧃 No toma alcohol</span>'}
           ${f.alias?`<span class="tag tag-alias">💳 ${f.alias}</span>`:''}
         </div>
       </div>
@@ -782,8 +958,8 @@ function updateRemaining() {
   }
 }
 function togglePayerSection() {
-  document.getElementById('payer-field-wrapper').style.display=
-    document.getElementById('e-type').value==='tip'?'none':'';
+  const t = document.getElementById('e-type').value;
+  document.getElementById('payer-field-wrapper').style.display=(t==='tip')?'none':'';
   updateRemaining();
 }
 
@@ -809,13 +985,14 @@ function saveExpense() {
     }
   }
   const applicable=ev.friends.filter(f=>{
+    if(f.isVenue) return false; // venue never divides
     if(type==='all') return true;
     if(type==='tip') return true;
-    if(type==='food-all') return f.diet!=='none';     // "no come" excluded from food
+    if(type==='food-all') return f.diet!=='none';
     if(type==='food-meat') return f.diet==='meat';
     if(type==='food-veg') return f.diet==='veg';
     if(type==='alcohol') return f.alcohol==='yes';
-    if(type==='no-alcohol') return f.alcohol==='no';
+    if(type==='no-alcohol') return f.alcohol==='no' || f.alcohol==='none';
     return true;
   }).map(f=>f.id);
   if(!applicable.length){ showToast('Ningún amigo aplica a este tipo'); return; }
@@ -828,7 +1005,7 @@ function saveExpense() {
     document.getElementById('cancel-edit-btn').style.display='none';
     showToast('✓ Gasto actualizado');
   } else {
-    ev.expenses.push({id:ev.nextExpenseId++,desc,amount,type,payers,applicable});
+    ev.expenses.push({id:ev.nextExpenseId++,desc,amount,type,payers,applicable,createdBy:currentRole==='admin'?'admin':(currentGuestName||'invitado'),createdAt:Date.now()});
     showToast('✓ Gasto agregado');
   }
   document.getElementById('e-desc').value=''; document.getElementById('e-amt').value='';
@@ -861,10 +1038,10 @@ function cancelEdit() {
   togglePayerSection();
   renderPayerForm(null); // explicit null = reset
 }
-function deleteExpense(id) {
+async function deleteExpense(id) {
   const ev=getEvent(currentEventId);
   const exp=ev.expenses.find(e=>e.id===id);
-  if(!confirm(`¿Eliminar "${exp.desc}"?`)) return;
+  if(!await showConfirm(`¿Eliminar "${exp.desc}"?`)) return;
   ev.expenses=ev.expenses.filter(e=>e.id!==id);
   if(editingExpenseId===id) cancelEdit();
   save();
@@ -895,8 +1072,10 @@ function renderExpenses() {
         <div class="expense-amount">$${e.amount.toFixed(2)}</div>
       </div>
       <div class="expense-actions">
-        <button class="btn btn-ghost btn-sm" onclick="editExpense(${e.id})">✎ Editar</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.id})">✕</button>
+        ${(currentRole==='admin' || e.createdBy===(currentGuestName||'invitado')) ? `
+          <button class="btn btn-ghost btn-sm" onclick="editExpense(${e.id})">✎ Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.id})">✕</button>
+        ` : `<span style="font-size:10px;color:var(--muted2);font-style:italic">por ${e.createdBy||'admin'}</span>`}
       </div>
     </div>`).join('');
 }
@@ -906,6 +1085,7 @@ function renderExpenses() {
 // ════════════════════════════════
 function calcResult(ev) {
   const owes={}, paid={}, rawOwes={}, tipOwes={};
+  const venueIds = new Set((ev.friends||[]).filter(f=>f.isVenue).map(f=>f.id));
   (ev.friends||[]).forEach(f=>{ owes[f.id]=0; paid[f.id]=0; rawOwes[f.id]=0; tipOwes[f.id]=0; });
   const validIds = new Set((ev.friends||[]).map(f=>f.id));
 
@@ -915,12 +1095,15 @@ function calcResult(ev) {
     const floor = Math.floor(exact);
     const remainder = Math.round((e.amount - floor * n));
 
-    if(e.type === 'tip') {
-      // Tips have no payer — tracked separately, not part of transfer flow
+    if(e.type === 'tip' || e.type === 'venue') {
+      // Tips and venue expenses have no payer — tracked separately, not part of transfer flow
       e.applicable.filter(fid=>validIds.has(fid)).forEach((fid, idx)=>{
         const share = floor + (idx < remainder ? 1 : 0);
         tipOwes[fid] = (tipOwes[fid]||0) + share;
         rawOwes[fid] = (rawOwes[fid]||0) + share;
+        if(e.type === 'venue') {
+          venueOwes[fid] = (venueOwes[fid]||0) + share;
+        }
       });
     } else {
       e.applicable.filter(fid=>validIds.has(fid)).forEach((fid, idx)=>{
@@ -936,6 +1119,7 @@ function calcResult(ev) {
   // Balance excludes tips — tips are owed "to the pot", not to any person
   const balance={};
   (ev.friends||[]).forEach(f=>{
+    if(f.isVenue) { balance[f.id] = Math.round(paid[f.id]||0); return; } // venue: balance = what they received
     balance[f.id] = Math.round((paid[f.id]||0)) - ((owes[f.id]||0) - (tipOwes[f.id]||0));
   });
 
@@ -965,11 +1149,13 @@ function renderResult() {
 
   // ── PROFILE BREAKDOWN ──
   const profiles = [
-    { label: '🥩🍺 Carne + Alcohol',      filter: f => f.diet==='meat' && f.alcohol==='yes' },
-    { label: '🥩🧃 Carne sin alcohol',    filter: f => f.diet==='meat' && f.alcohol==='no'  },
-    { label: '🥗🍺 Veggie + Alcohol',     filter: f => f.diet==='veg'  && f.alcohol==='yes' },
-    { label: '🥗🧃 Veggie sin alcohol',   filter: f => f.diet==='veg'  && f.alcohol==='no'  },
-    { label: '🚫🍺 Solo toma (no come)',  filter: f => f.diet==='none' && f.alcohol==='yes' },
+    { label: '🥩🍺 Carne + Alcohol',      filter: f => f.diet==='meat' && f.alcohol==='yes'  },
+    { label: '🥩🧃 Carne sin alcohol',    filter: f => f.diet==='meat' && f.alcohol==='no'   },
+    { label: '🥩💧 Carne sin bebida',     filter: f => f.diet==='meat' && f.alcohol==='none' },
+    { label: '🥗🍺 Veggie + Alcohol',     filter: f => f.diet==='veg'  && f.alcohol==='yes'  },
+    { label: '🥗🧃 Veggie sin alcohol',   filter: f => f.diet==='veg'  && f.alcohol==='no'   },
+    { label: '🥗💧 Veggie sin bebida',    filter: f => f.diet==='veg'  && f.alcohol==='none' },
+    { label: '🚫🍺 Solo toma (no come)',  filter: f => f.diet==='none' && f.alcohol==='yes'  },
   ];
   html += '<div class="summary-card" style="margin-bottom:12px">';
   profiles.forEach(p => {
@@ -1003,6 +1189,7 @@ function renderResult() {
       <div class="rp-rows">
         <div class="rp-row"><span>Le corresponde pagar</span><span>$${owes[f.id]||0}</span></div>
         ${tipOwes[f.id]>0?`<div class="rp-row"><span style="color:#f0d050">↳ incl. propina/bono</span><span style="color:#f0d050">$${tipOwes[f.id]}</span></div>`:''}
+
         <div class="rp-row"><span>Pagó</span><span>$${Math.round(paid[f.id]||0)}</span></div>
         ${aliasRow}
       </div>
@@ -1014,8 +1201,15 @@ function renderResult() {
     html+=`<div style="font-family:'Syne',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:14px 0 8px">Transferencias</div>`;
     transfers.forEach(t=>{
       const rec=ev.friends.find(f=>f.name===t.to);
-      const aliasHtml=rec?.alias?`<div style="font-size:11px;color:var(--accent2);margin-top:4px">💳 ${rec.alias}</div>`:'';
-      html+=`<div class="transfer-row"><span style="font-size:18px">💸</span><div class="transfer-txt"><div><strong>${t.from}</strong> → <strong>${t.to}</strong></div>${aliasHtml}</div><div class="transfer-amt">$${t.amount}</div></div>`;
+      const isVenueRec = rec?.isVenue;
+      const aliasHtml = isVenueRec && rec?.alias
+        ? `<div style="font-size:11px;color:#f0b840;margin-top:3px">💳 ${rec.alias}</div>`
+        : rec?.alias ? `<div style="font-size:11px;color:var(--accent2);margin-top:4px">💳 ${rec.alias}</div>` : '';
+      const icon = isVenueRec ? '🏪' : '💸';
+      const toStyle = isVenueRec ? 'color:#f0b840' : '';
+      const amtStyle = isVenueRec ? 'color:#f0b840' : '';
+      const rowStyle = isVenueRec ? 'background:rgba(255,180,0,.04);border:1px solid rgba(255,180,0,.12);border-radius:var(--r-sm);' : '';
+      html+=`<div class="transfer-row" style="${rowStyle}"><span style="font-size:18px">${icon}</span><div class="transfer-txt"><div><strong>${t.from}</strong> → <strong style="${toStyle}">${t.to}</strong></div>${aliasHtml}</div><div class="transfer-amt" style="${amtStyle}">$${t.amount}</div></div>`;
     });
   }
   el.innerHTML=html;
@@ -1096,11 +1290,13 @@ function exportMatrixImage() {
 
   // ── Profile breakdown data ──
   const profiles = [
-    { label: 'Carne + Alcohol',    emoji: '🥩🍺', filter: f => f.diet==='meat' && f.alcohol==='yes' },
-    { label: 'Carne sin alcohol',  emoji: '🥩🧃', filter: f => f.diet==='meat' && f.alcohol==='no'  },
-    { label: 'Veggie + Alcohol',   emoji: '🥗🍺', filter: f => f.diet==='veg'  && f.alcohol==='yes' },
-    { label: 'Veggie sin alcohol', emoji: '🥗🧃', filter: f => f.diet==='veg'  && f.alcohol==='no'  },
-    { label: 'Solo toma (no come)',emoji: '🚫🍺', filter: f => f.diet==='none' && f.alcohol==='yes' },
+    { label: 'Carne + Alcohol',    emoji: '🥩🍺', filter: f => f.diet==='meat' && f.alcohol==='yes'  },
+    { label: 'Carne sin alcohol',  emoji: '🥩🧃', filter: f => f.diet==='meat' && f.alcohol==='no'   },
+    { label: 'Carne sin bebida',   emoji: '🥩💧', filter: f => f.diet==='meat' && f.alcohol==='none' },
+    { label: 'Veggie + Alcohol',   emoji: '🥗🍺', filter: f => f.diet==='veg'  && f.alcohol==='yes'  },
+    { label: 'Veggie sin alcohol', emoji: '🥗🧃', filter: f => f.diet==='veg'  && f.alcohol==='no'   },
+    { label: 'Veggie sin bebida',  emoji: '🥗💧', filter: f => f.diet==='veg'  && f.alcohol==='none' },
+    { label: 'Solo toma (no come)',emoji: '🚫🍺', filter: f => f.diet==='none' && f.alcohol==='yes'  },
   ].filter(p => ev.friends.some(p.filter));
   const PH = 44; // height per profile row
   const PRH = profiles.length ? (20 + profiles.length * PH + 16) : 0; // total profile section height
@@ -1247,9 +1443,9 @@ let syncEventId = null;
 
 // ── Auth state ──
 let currentRole = null; // 'admin' | 'guest' | null
-const ADMIN_PASSWORD = "spliteat_admin_2024"; // contraseña fija del admin (hardcoded)
-// Access code is stored in Firebase at /spliteat/accessCode
-// Admin can change it anytime from the app
+let currentGuestName = null; // name entered by guest on login
+// Both admin password and guest access code are stored in Firebase
+// First-time default admin password: spliteat_admin_2024 (change it immediately from the app)
 
 function sanitizeEvent(ev) {
   if(!ev) return ev;
@@ -1293,28 +1489,103 @@ function fbRef(eventId) {
   return fbDatabase.ref('spliteat/events/' + eventId);
 }
 
+let reconnectTimer = null;
+
 function setSyncDot(state) {
   const el = document.getElementById('sync-dot');
   if(!el) return;
   el.className = 'sync-dot ' + state;
-  const labels = { synced:'Sincronizado', saving:'Guardando...', error:'Error de sincronización', offline:'Sin sincronización' };
+  const labels = { synced:'Sincronizado', saving:'Guardando...', error:'Sin conexión — reintentando...', offline:'Sin sincronización' };
   el.title = labels[state] || state;
+
+  // Auto-reconnect on error
+  if(state === 'error') {
+    if(reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => {
+      if(!currentRole) return;
+      reconnectTimer = null;
+      tryReconnect();
+    }, 5000); // retry after 5s
+  } else if(state === 'synced') {
+    if(reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  }
 }
 
+async function tryReconnect() {
+  if(!firebaseReady || !currentRole) return;
+  setSyncDot('saving');
+  try {
+    // Test connection with a lightweight read
+    await fbDatabase.ref('spliteat/accessCode').get();
+    // If we get here, Firebase is back — restart listeners
+    if(currentRole) {
+      startGlobalSync();
+      if(currentEventId) {
+        const ev = getEvent(currentEventId);
+        if(ev) startSync(ev);
+      }
+      setSyncDot('synced');
+      showToast('✓ Conexión restaurada');
+    }
+  } catch(e) {
+    setSyncDot('error'); // will trigger another retry
+  }
+}
+
+let offlineQueue = []; // pending pushes when offline
+
 async function pushEvent(ev) {
-  if(!firebaseReady) return;
+  if(!firebaseReady || !navigator.onLine) {
+    // Queue for later
+    const existing = offlineQueue.findIndex(q => q.id === ev.id);
+    if(existing >= 0) offlineQueue[existing] = JSON.parse(JSON.stringify(ev));
+    else offlineQueue.push(JSON.parse(JSON.stringify(ev)));
+    setSyncDot('offline');
+    showToast('Sin internet — cambio guardado localmente');
+    return;
+  }
   isPushing = true;
   setSyncDot('saving');
   try {
     await fbDatabase.ref('spliteat/events/' + ev.id).set(JSON.parse(JSON.stringify(ev)));
     setSyncDot('synced');
   } catch(e) {
+    // Queue for retry
+    const existing = offlineQueue.findIndex(q => q.id === ev.id);
+    if(existing >= 0) offlineQueue[existing] = JSON.parse(JSON.stringify(ev));
+    else offlineQueue.push(JSON.parse(JSON.stringify(ev)));
     setSyncDot('error');
     console.warn('Firebase push error:', e);
   } finally {
     isPushing = false;
   }
 }
+
+async function flushOfflineQueue() {
+  if(!offlineQueue.length || !firebaseReady || !navigator.onLine) return;
+  const queue = offlineQueue.slice();
+  offlineQueue = [];
+  setSyncDot('saving');
+  let failed = [];
+  for(const ev of queue) {
+    try {
+      await fbDatabase.ref('spliteat/events/' + ev.id).set(ev);
+    } catch(e) {
+      failed.push(ev);
+    }
+  }
+  offlineQueue = failed;
+  if(!failed.length) {
+    setSyncDot('synced');
+    if(queue.length) showToast(`✓ ${queue.length} cambio${queue.length>1?'s':''} sincronizado${queue.length>1?'s':''}`);
+  } else {
+    setSyncDot('error');
+  }
+}
+
+// Listen for coming back online
+window.addEventListener('online',  () => { setSyncDot('saving'); flushOfflineQueue().then(()=>tryReconnect()); });
+window.addEventListener('offline', () => setSyncDot('offline'));
 
 function startSync(ev) {
   if(!firebaseReady) { setSyncDot('offline'); return; }
@@ -1371,6 +1642,20 @@ function startGlobalSync() {
     const maxId = remoteEvents.reduce((m,e)=>Math.max(m,e.id),0);
     if(maxId >= db.nextEventId) db.nextEventId = maxId + 1;
     save();
+    // If guest: auto-add to any new events
+    if(currentRole === 'guest' && currentGuestName) {
+      const galias = localStorage.getItem('spliteat_guest_alias') || '';
+      const gdiet  = localStorage.getItem('spliteat_guest_diet')  || 'meat';
+      const galc   = localStorage.getItem('spliteat_guest_alc')   || 'yes';
+      db.events.forEach(ev => {
+        const already = ev.friends.find(f=>f.name.toLowerCase()===currentGuestName.toLowerCase());
+        if(!already) {
+          ev.friends.push({id:ev.nextFriendId++, name:currentGuestName, alias:galias, diet:gdiet, alcohol:galc, isGuest:true});
+          pushEvent(ev);
+        }
+      });
+      save();
+    }
     const onHome = document.getElementById('view-home').classList.contains('active');
     if(onHome) { _renderHomeInner(); setSyncDot('synced'); return; }
     if(currentEventId) {
@@ -1404,7 +1689,31 @@ function bootApp() {
   const saved = localStorage.getItem('spliteat_role');
   if(saved === 'admin' || saved === 'guest') {
     currentRole = saved;
-    if(currentRole === 'guest') syncAllEvents().then(()=>{ startGlobalSync(); _renderHomeInner(); applyRole(); });
+    if(currentRole === 'guest') {
+      currentGuestName = localStorage.getItem('spliteat_guest_name') || null;
+      // Re-apply profile in case events changed since last session
+      const _galias = localStorage.getItem('spliteat_guest_alias') || '';
+      const _gdiet  = localStorage.getItem('spliteat_guest_diet')  || 'meat';
+      const _galc   = localStorage.getItem('spliteat_guest_alc')   || 'yes';
+      syncAllEvents().then(async ()=>{
+        if(currentGuestName) {
+          let anyAdded = false;
+          for(const ev of db.events) {
+            const already = ev.friends.find(f=>f.name.toLowerCase()===currentGuestName.toLowerCase());
+            if(!already) {
+              ev.friends.push({id:ev.nextFriendId++, name:currentGuestName, alias:_galias, diet:_gdiet, alcohol:_galc, isGuest:true});
+              anyAdded = true;
+              await pushEvent(ev);
+            }
+          }
+          if(anyAdded) save();
+        }
+        startGlobalSync();
+        showView('view-home');
+        _renderHomeInner();
+        applyRole();
+      });
+    }
     else { startGlobalSync(); showView('view-home'); renderHome(); applyRole(); }
   } else {
     showView('view-login');
@@ -1422,40 +1731,87 @@ function applyRole() {
   // Show role badge
   const badge = document.getElementById('role-badge');
   if(badge) {
-    badge.textContent = currentRole === 'admin' ? '👑 Admin' : '👤 Invitado';
+    badge.textContent = currentRole === 'admin' ? '👑 Admin' : ('👤 ' + (currentGuestName || 'Invitado'));
     badge.style.color = currentRole === 'admin' ? 'var(--accent)' : 'var(--muted2)';
   }
   // Show join button only for guests (to re-join if needed) — hide for admin
-  const joinBtn = document.getElementById('join-btn');
-  if(joinBtn) joinBtn.style.display = 'none';
+
 }
 
 async function loginAdmin() {
   const pwd = document.getElementById('login-admin-pwd').value;
-  if(pwd !== ADMIN_PASSWORD) { showLoginError('Contraseña incorrecta'); return; }
-  currentRole = 'admin';
-  localStorage.setItem('spliteat_role','admin');
-  document.getElementById('view-login').classList.remove('active');
-  startGlobalSync();
-  showView('view-home');
-  renderHome();
-  applyRole();
+  if(!pwd) { showLoginError('Ingresá la contraseña'); return; }
+  showLoginError('Verificando…');
+  try {
+    let stored = 'spliteat_admin_2024'; // default
+    if(firebaseReady) {
+      const snap = await fbDatabase.ref('spliteat/adminPassword').get();
+      if(snap.val()) stored = snap.val();
+    }
+    if(pwd !== stored) { showLoginError('Contraseña incorrecta'); return; }
+    currentRole = 'admin';
+    localStorage.setItem('spliteat_role','admin');
+    document.getElementById('view-login').classList.remove('active');
+    startGlobalSync();
+    showView('view-home');
+    renderHome();
+    applyRole();
+  } catch(e) {
+    // Fallback to default if Firebase fails
+    if(pwd === 'spliteat_admin_2024') {
+      currentRole = 'admin';
+      localStorage.setItem('spliteat_role','admin');
+      document.getElementById('view-login').classList.remove('active');
+      startGlobalSync();
+      showView('view-home');
+      renderHome();
+      applyRole();
+    } else {
+      showLoginError('Error de conexión. Intentá de nuevo.');
+    }
+  }
 }
 
 async function loginGuest() {
-  const code = document.getElementById('login-guest-code').value.trim().toUpperCase();
-  if(!code) { showLoginError('Ingresá el código'); return; }
+  const code   = document.getElementById('login-guest-code').value.trim().toUpperCase();
+  const gname  = document.getElementById('login-guest-name').value.trim();
+  const galias = document.getElementById('login-guest-alias').value.trim();
+  const gdiet  = document.getElementById('login-guest-diet').value;
+  const galc   = document.getElementById('login-guest-alc').value;
+
+  if(!gname)  { showLoginError('Ingresá tu nombre'); return; }
+  if(!code)   { showLoginError('Ingresá el código de acceso'); return; }
   if(!firebaseReady) { showLoginError('Error de conexión'); return; }
+
   showLoginError('Verificando…');
   try {
     const snap = await fbDatabase.ref('spliteat/accessCode').get();
     const validCode = snap.val();
     if(!validCode) { showLoginError('No hay código configurado aún. Pedíselo al admin.'); return; }
     if(code !== validCode.toUpperCase()) { showLoginError('Código incorrecto'); return; }
+
+    // Save profile
     currentRole = 'guest';
-    localStorage.setItem('spliteat_role','guest');
+    currentGuestName = gname;
+    localStorage.setItem('spliteat_role',        'guest');
+    localStorage.setItem('spliteat_guest_name',  gname);
+    localStorage.setItem('spliteat_guest_alias', galias);
+    localStorage.setItem('spliteat_guest_diet',  gdiet);
+    localStorage.setItem('spliteat_guest_alc',   galc);
+
     showLoginError('Cargando eventos…');
     await syncAllEvents();
+
+    // Auto-add guest as friend in every event
+    for(const ev of db.events) {
+      const already = ev.friends.find(f => f.name.toLowerCase() === gname.toLowerCase());
+      if(!already) {
+        ev.friends.push({id: ev.nextFriendId++, name: gname, alias: galias, diet: gdiet, alcohol: galc, isGuest: true});
+        await pushEvent(ev);
+      }
+    }
+    save();
+
     startGlobalSync();
     document.getElementById('view-login').classList.remove('active');
     showView('view-home');
@@ -1472,7 +1828,7 @@ async function syncAllEvents() {
   try {
     const snap = await fbDatabase.ref('spliteat/events').get();
     if(!snap.exists()) { save(); return; }
-    const remoteEvents = Object.values(snap.val());
+    const remoteEvents = Object.values(snap.val()).map(sanitizeEvent);
     // Remote is source of truth — replace all local events
     db.events = remoteEvents;
     // Reset nextEventId to avoid collisions
@@ -1485,6 +1841,52 @@ async function syncAllEvents() {
 function showLoginError(msg) {
   const el = document.getElementById('login-error');
   if(el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+// ════════════════════════════════
+// CUSTOM CONFIRM DIALOG
+// ════════════════════════════════
+let _confirmResolve = null;
+
+function showConfirm(msg, okLabel='Eliminar', okClass='btn-danger') {
+  document.getElementById('modal-confirm-msg').textContent = msg;
+  document.getElementById('modal-confirm-ok').textContent = okLabel;
+  document.getElementById('modal-confirm-ok').className = 'btn ' + okClass;
+  document.getElementById('modal-confirm').classList.add('open');
+  return new Promise(resolve => { _confirmResolve = resolve; });
+}
+function _confirmAccept() {
+  document.getElementById('modal-confirm').classList.remove('open');
+  if(_confirmResolve) { _confirmResolve(true); _confirmResolve = null; }
+}
+function _confirmReject() {
+  document.getElementById('modal-confirm').classList.remove('open');
+  if(_confirmResolve) { _confirmResolve(false); _confirmResolve = null; }
+}
+
+function switchLoginTab(tab) {
+  const isGuest = tab === 'guest';
+  document.getElementById('login-panel-guest').style.display = isGuest ? '' : 'none';
+  document.getElementById('login-panel-admin').style.display = isGuest ? 'none' : '';
+  const tg = document.getElementById('login-tab-guest');
+  const ta = document.getElementById('login-tab-admin');
+  tg.style.background = isGuest ? 'var(--accent)' : 'transparent';
+  tg.style.color = isGuest ? '#0a0a0f' : 'var(--muted2)';
+  ta.style.background = isGuest ? 'transparent' : 'var(--accent)';
+  ta.style.color = isGuest ? 'var(--muted2)' : '#0a0a0f';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function togglePwd(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if(!inp) return;
+  if(inp.type === 'password') {
+    inp.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    inp.type = 'password';
+    btn.textContent = '👁';
+  }
 }
 
 function logout() {
@@ -1506,6 +1908,227 @@ async function saveAccessCode() {
   } catch(e) { showToast('Error al guardar','error'); }
 }
 
+// ════════════════════════════════
+// FRIENDS BASE
+// ════════════════════════════════
+let cachedFriendsBase = [];
+
+function fbBaseToObj(arr) {
+  // Store as keyed object to avoid Firebase array issues
+  const obj = {};
+  arr.forEach((f,i) => obj['f'+i] = f);
+  return obj;
+}
+
+async function saveFriendsBaseToFb() {
+  if(!firebaseReady) return;
+  if(cachedFriendsBase.length === 0) {
+    await fbDatabase.ref('spliteat/friendsBase').remove();
+  } else {
+    await fbDatabase.ref('spliteat/friendsBase').set(fbBaseToObj(cachedFriendsBase));
+  }
+}
+
+async function loadFriendsBase() {
+  try {
+    if(firebaseReady) {
+      const snap = await fbDatabase.ref('spliteat/friendsBase').get();
+      cachedFriendsBase = snap.val() ? Object.values(snap.val()) : [];
+    }
+  } catch(e) { console.warn('loadFriendsBase:', e); }
+  return cachedFriendsBase;
+}
+
+async function openFriendsBaseModal() {
+  await loadFriendsBase();
+  renderFriendsBaseModal();
+  document.getElementById('modal-friends-base').classList.add('open');
+}
+
+function renderFriendsBaseModal() {
+  const el = document.getElementById('friends-base-list');
+  if(!cachedFriendsBase.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted2);text-align:center;padding:10px 0">Base vacía — agregá amigos abajo.</div>';
+    return;
+  }
+  const dIcon = {meat:'🥩',veg:'🥗',none:'🚫'};
+  const aIcon = {yes:'🍺',no:'🧃',none:'💧'};
+  el.innerHTML = cachedFriendsBase.map((f,i) => `
+    <div id="fb-row-${i}" style="background:var(--surface2);border-radius:var(--r-sm);margin-bottom:6px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600">${f.name}</div>
+          ${f.alias?`<div style="font-size:11px;color:var(--muted2)">${f.alias}</div>`:''}
+        </div>
+        <span style="font-size:14px">${dIcon[f.diet]||'🥩'}${aIcon[f.alcohol]||'🍺'}</span>
+        <button onclick="editFriendInBase(${i})" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:14px;padding:2px 4px;line-height:1">✎</button>
+        <button onclick="removeFriendFromBase(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0;line-height:1">×</button>
+      </div>
+      <div id="fb-edit-${i}" style="display:none;padding:10px;border-top:1px solid var(--border)">
+        <div class="row2" style="margin-bottom:8px">
+          <div class="field" style="margin-bottom:0"><label style="font-size:11px">Nombre</label><input type="text" id="fb-edit-name-${i}" value="${f.name}" maxlength="22"></div>
+          <div class="field" style="margin-bottom:0"><label style="font-size:11px">Alias CVU</label><input type="text" id="fb-edit-alias-${i}" value="${f.alias||''}" maxlength="40"></div>
+        </div>
+        <div class="row2" style="margin-bottom:8px">
+          <div class="field" style="margin-bottom:0">
+            <select id="fb-edit-diet-${i}">
+              <option value="meat" ${f.diet==='meat'?'selected':''}>🥩 Carne</option>
+              <option value="veg"  ${f.diet==='veg'?'selected':''}>🥗 Veggie</option>
+              <option value="none" ${f.diet==='none'?'selected':''}>🚫 No come</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <select id="fb-edit-alc-${i}">
+              <option value="yes"  ${f.alcohol==='yes'?'selected':''}>🍺 Toma alcohol</option>
+              <option value="no"   ${f.alcohol==='no'?'selected':''}>🧃 No toma alcohol</option>
+              <option value="none" ${f.alcohol==='none'?'selected':''}>💧 No toma nada</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="saveFriendInBase(${i})" class="btn btn-primary" style="padding:7px 14px;font-size:12px">✓ Guardar</button>
+          <button onclick="cancelEditFriendInBase(${i})" class="btn btn-ghost" style="padding:7px 14px;font-size:12px">Cancelar</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function addToFriendsBase() {
+  const name = document.getElementById('fb-name').value.trim();
+  if(!name) { showToast('Ingresá un nombre','error'); return; }
+  await loadFriendsBase();
+  if(cachedFriendsBase.find(f=>f.name.toLowerCase()===name.toLowerCase())) {
+    showToast('Ya está en la base','error'); return;
+  }
+  cachedFriendsBase.push({
+    name,
+    alias:   document.getElementById('fb-alias').value.trim(),
+    diet:    document.getElementById('fb-diet').value,
+    alcohol: document.getElementById('fb-alc').value
+  });
+  await saveFriendsBaseToFb();
+  document.getElementById('fb-name').value='';
+  document.getElementById('fb-alias').value='';
+  showToast('✓ '+name+' agregado/a a la base');
+  renderFriendsBaseModal();
+  renderFriendsBasePicker();
+}
+
+function editFriendInBase(idx) {
+  // Close any other open editors
+  cachedFriendsBase.forEach((_,i) => {
+    const ed = document.getElementById('fb-edit-'+i);
+    if(ed) ed.style.display = 'none';
+  });
+  const ed = document.getElementById('fb-edit-'+idx);
+  if(ed) ed.style.display = ed.style.display === 'none' ? '' : 'none';
+}
+
+function cancelEditFriendInBase(idx) {
+  const ed = document.getElementById('fb-edit-'+idx);
+  if(ed) ed.style.display = 'none';
+}
+
+async function saveFriendInBase(idx) {
+  const name  = document.getElementById('fb-edit-name-'+idx).value.trim();
+  if(!name) { showToast('El nombre no puede estar vacío','error'); return; }
+  const alias = document.getElementById('fb-edit-alias-'+idx).value.trim();
+  const diet  = document.getElementById('fb-edit-diet-'+idx).value;
+  const alc   = document.getElementById('fb-edit-alc-'+idx).value;
+  cachedFriendsBase[idx] = {name, alias, diet, alcohol: alc};
+  await saveFriendsBaseToFb();
+  showToast('✓ '+name+' actualizado/a');
+  renderFriendsBaseModal();
+  renderFriendsBasePicker();
+}
+
+async function removeFriendFromBase(idx) {
+  if(!await showConfirm('¿Eliminar de la base?')) return;
+  cachedFriendsBase.splice(idx, 1);
+  await saveFriendsBaseToFb();
+  showToast('Eliminado de la base');
+  renderFriendsBaseModal();
+  renderFriendsBasePicker();
+}
+
+async function renderFriendsBasePicker() {
+  if(currentRole !== 'admin') return;
+  const card = document.getElementById('friends-from-base-card');
+  if(card) card.style.display = '';
+  const el = document.getElementById('friends-base-picker');
+  if(!el) return;
+  if(!cachedFriendsBase.length) await loadFriendsBase();
+  if(!cachedFriendsBase.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted2);padding:4px 0">Base vacía. Agregá amigos desde ⚙️ Gestionar base.</div>';
+    return;
+  }
+  const ev = getEvent(currentEventId);
+  if(!ev) return;
+  const dIcon = {meat:'🥩',veg:'🥗',none:'🚫'};
+  const aIcon = {yes:'🍺',no:'🧃',none:'💧'};
+  el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
+    cachedFriendsBase.map(f => {
+      const already = ev.friends.find(ef => ef.name.toLowerCase()===f.name.toLowerCase());
+      return `<button onclick="addFriendFromBase('${f.name}')"
+        style="display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:20px;border:1px solid ${already?'var(--border2)':'var(--accent)'};background:${already?'var(--surface2)':'rgba(184,240,80,.08)'};color:${already?'var(--muted2)':'var(--text)'};cursor:${already?'default':'pointer'};font-size:12px;font-family:'DM Sans',sans-serif;transition:all .15s" ${already?'disabled':''}>
+        <span>${f.name}</span>
+        <span style="font-size:11px">${dIcon[f.diet]||'🥩'}${aIcon[f.alcohol]||'🍺'}</span>
+        ${already?'<span style="font-size:10px;color:var(--muted2)">✓</span>':'<span style="font-size:12px;color:var(--accent)">+</span>'}
+      </button>`;
+    }).join('') + '</div>';
+}
+
+async function addFriendFromBase(name) {
+  const ev = getEvent(currentEventId);
+  if(!ev) return;
+  const already = ev.friends.find(f=>f.name.toLowerCase()===name.toLowerCase());
+  if(already) { showToast(name+' ya está en el evento'); return; }
+  const base = cachedFriendsBase.find(f=>f.name===name);
+  if(!base) return;
+  ev.friends.push({id:ev.nextFriendId++, name:base.name, alias:base.alias, diet:base.diet, alcohol:base.alcohol});
+  save();
+  pushEvent(ev);
+  renderFriends();
+  renderFriendsBasePicker(); // refresh to show ✓
+  showToast('✓ '+name+' agregado/a');
+}
+
+async function openAmigosTab() {
+  await renderFriendsBasePicker();
+}
+
+async function openAdminPwdModal() {
+  document.getElementById('admin-pwd-current').value='';
+  document.getElementById('admin-pwd-new').value='';
+  document.getElementById('admin-pwd-confirm').value='';
+  document.getElementById('admin-pwd-error').style.display='none';
+  document.getElementById('modal-admin-pwd').classList.add('open');
+  setTimeout(()=>document.getElementById('admin-pwd-current').focus(), 200);
+}
+
+async function saveAdminPassword() {
+  const current = document.getElementById('admin-pwd-current').value;
+  const newPwd  = document.getElementById('admin-pwd-new').value;
+  const confirm = document.getElementById('admin-pwd-confirm').value;
+  const errEl   = document.getElementById('admin-pwd-error');
+  const showErr = msg => { errEl.textContent=msg; errEl.style.display='block'; };
+
+  if(!current || !newPwd || !confirm) return showErr('Completá todos los campos');
+  if(newPwd.length < 6) return showErr('La nueva contraseña debe tener al menos 6 caracteres');
+  if(newPwd !== confirm) return showErr('Las contraseñas no coinciden');
+
+  try {
+    const snap = await fbDatabase.ref('spliteat/adminPassword').get();
+    const stored = snap.val() || 'spliteat_admin_2024';
+    if(current !== stored) return showErr('La contraseña actual es incorrecta');
+    await fbDatabase.ref('spliteat/adminPassword').set(newPwd);
+    document.getElementById('modal-admin-pwd').classList.remove('open');
+    showToast('✓ Contraseña actualizada');
+  } catch(e) {
+    showErr('Error al guardar. Revisá tu conexión.');
+  }
+}
+
 async function openAccessCodeModal() {
   try {
     const snap = await fbDatabase.ref('spliteat/accessCode').get();
@@ -1518,70 +2141,17 @@ async function openAccessCodeModal() {
 // ════════════════════════════════
 // JOIN / CODE SHARE (kept for backward compat)
 // ════════════════════════════════
-function openJoinModal() {
-  document.getElementById('join-code-inp').value='';
-  document.getElementById('join-error').style.display='none';
-  document.getElementById('modal-join').classList.add('open');
-  setTimeout(()=>document.getElementById('join-code-inp').focus(),200);
-}
+// openJoinModal removed
 
-async function joinEvent() {
-  const code = document.getElementById('join-code-inp').value.trim().toUpperCase();
-  if(code.length !== 6) { showJoinError('Ingresá un código de 6 caracteres'); return; }
-  if(!firebaseReady) { showJoinError('Firebase no está configurado'); return; }
-  showJoinError('Buscando evento…');
-  try {
-    const snap = await fbRef(code).get();
-    if(!snap.exists()) { showJoinError('Código no encontrado. Verificá y volvé a intentar.'); return; }
-    const data = snap.val();
-    // Check if we already have this event
-    const existing = db.events.find(e => e.shareCode === code);
-    if(existing) {
-      // Update local with remote
-      const idx = db.events.findIndex(e=>e.shareCode===code);
-      db.events[idx] = data;
-    } else {
-      db.events.push(data);
-    }
-    save();
-    document.getElementById('modal-join').classList.remove('open');
-    renderHome();
-    showToast('✓ Evento unido: '+data.name);
-    // Open the event
-    setTimeout(()=>openEvent(data.id), 300);
-  } catch(e) {
-    showJoinError('Error al buscar el evento. Revisá tu conexión.');
-    console.warn(e);
-  }
-}
+// joinEvent body removed
 
-function showJoinError(msg) {
-  const el = document.getElementById('join-error');
-  el.textContent = msg; el.style.display = 'block';
-}
+// showJoinError removed
 
-function openCodeModal() {
-  const ev = getEvent(currentEventId);
-  if(!ev?.shareCode) { showToast('Este evento no tiene código de sincronización'); return; }
-  document.getElementById('modal-code-display').textContent = ev.shareCode;
-  document.getElementById('modal-code').classList.add('open');
-}
+// openCodeModal removed
 
-function copyCode() {
-  const code = document.getElementById('modal-code-display').textContent;
-  navigator.clipboard?.writeText(code).then(()=>showToast('✓ Código copiado')).catch(()=>{
-    const tmp=document.createElement('input'); tmp.value=code;
-    document.body.appendChild(tmp); tmp.select(); document.execCommand('copy');
-    document.body.removeChild(tmp); showToast('✓ Código copiado');
-  });
-}
+// copyCode removed
 
-function shareCodeWhatsApp() {
-  const ev = getEvent(currentEventId);
-  const txt = `🍽️ Unite al evento *${ev.name}* en SplitEat!
-Código: *${ev.shareCode}*`;
-  window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
-}
+// shareCodeWhatsApp removed
 
 // ════════════════════════════════
 // INIT
