@@ -1737,6 +1737,22 @@ async function saveAccessCode() {
 // ════════════════════════════════
 let cachedFriendsBase = [];
 
+function fbBaseToObj(arr) {
+  // Store as keyed object to avoid Firebase array issues
+  const obj = {};
+  arr.forEach((f,i) => obj['f'+i] = f);
+  return obj;
+}
+
+async function saveFriendsBaseToFb() {
+  if(!firebaseReady) return;
+  if(cachedFriendsBase.length === 0) {
+    await fbDatabase.ref('spliteat/friendsBase').remove();
+  } else {
+    await fbDatabase.ref('spliteat/friendsBase').set(fbBaseToObj(cachedFriendsBase));
+  }
+}
+
 async function loadFriendsBase() {
   try {
     if(firebaseReady) {
@@ -1762,13 +1778,41 @@ function renderFriendsBaseModal() {
   const dIcon = {meat:'🥩',veg:'🥗',none:'🚫'};
   const aIcon = {yes:'🍺',no:'🧃'};
   el.innerHTML = cachedFriendsBase.map((f,i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);margin-bottom:6px">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600">${f.name}</div>
-        ${f.alias?`<div style="font-size:11px;color:var(--muted2)">${f.alias}</div>`:''}
+    <div id="fb-row-${i}" style="background:var(--surface2);border-radius:var(--r-sm);margin-bottom:6px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600">${f.name}</div>
+          ${f.alias?`<div style="font-size:11px;color:var(--muted2)">${f.alias}</div>`:''}
+        </div>
+        <span style="font-size:14px">${dIcon[f.diet]||'🥩'}${aIcon[f.alcohol]||'🍺'}</span>
+        <button onclick="editFriendInBase(${i})" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:14px;padding:2px 4px;line-height:1">✎</button>
+        <button onclick="removeFriendFromBase(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0;line-height:1">×</button>
       </div>
-      <span style="font-size:14px">${dIcon[f.diet]||'🥩'}${aIcon[f.alcohol]||'🍺'}</span>
-      <button onclick="removeFriendFromBase(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0;line-height:1">×</button>
+      <div id="fb-edit-${i}" style="display:none;padding:10px;border-top:1px solid var(--border)">
+        <div class="row2" style="margin-bottom:8px">
+          <div class="field" style="margin-bottom:0"><label style="font-size:11px">Nombre</label><input type="text" id="fb-edit-name-${i}" value="${f.name}" maxlength="22"></div>
+          <div class="field" style="margin-bottom:0"><label style="font-size:11px">Alias CVU</label><input type="text" id="fb-edit-alias-${i}" value="${f.alias||''}" maxlength="40"></div>
+        </div>
+        <div class="row2" style="margin-bottom:8px">
+          <div class="field" style="margin-bottom:0">
+            <select id="fb-edit-diet-${i}">
+              <option value="meat" ${f.diet==='meat'?'selected':''}>🥩 Carne</option>
+              <option value="veg"  ${f.diet==='veg'?'selected':''}>🥗 Veggie</option>
+              <option value="none" ${f.diet==='none'?'selected':''}>🚫 No come</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <select id="fb-edit-alc-${i}">
+              <option value="yes" ${f.alcohol==='yes'?'selected':''}>🍺 Alcohol</option>
+              <option value="no"  ${f.alcohol==='no'?'selected':''}>🧃 Sin alcohol</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="saveFriendInBase(${i})" class="btn btn-primary" style="padding:7px 14px;font-size:12px">✓ Guardar</button>
+          <button onclick="cancelEditFriendInBase(${i})" class="btn btn-ghost" style="padding:7px 14px;font-size:12px">Cancelar</button>
+        </div>
+      </div>
     </div>`).join('');
 }
 
@@ -1785,19 +1829,46 @@ async function addToFriendsBase() {
     diet:    document.getElementById('fb-diet').value,
     alcohol: document.getElementById('fb-alc').value
   });
-  await fbDatabase.ref('spliteat/friendsBase').set(cachedFriendsBase);
+  await saveFriendsBaseToFb();
   document.getElementById('fb-name').value='';
   document.getElementById('fb-alias').value='';
   showToast('✓ '+name+' agregado/a a la base');
   renderFriendsBaseModal();
-  // Refresh picker in friends pane if open
+  renderFriendsBasePicker();
+}
+
+function editFriendInBase(idx) {
+  // Close any other open editors
+  cachedFriendsBase.forEach((_,i) => {
+    const ed = document.getElementById('fb-edit-'+i);
+    if(ed) ed.style.display = 'none';
+  });
+  const ed = document.getElementById('fb-edit-'+idx);
+  if(ed) ed.style.display = ed.style.display === 'none' ? '' : 'none';
+}
+
+function cancelEditFriendInBase(idx) {
+  const ed = document.getElementById('fb-edit-'+idx);
+  if(ed) ed.style.display = 'none';
+}
+
+async function saveFriendInBase(idx) {
+  const name  = document.getElementById('fb-edit-name-'+idx).value.trim();
+  if(!name) { showToast('El nombre no puede estar vacío','error'); return; }
+  const alias = document.getElementById('fb-edit-alias-'+idx).value.trim();
+  const diet  = document.getElementById('fb-edit-diet-'+idx).value;
+  const alc   = document.getElementById('fb-edit-alc-'+idx).value;
+  cachedFriendsBase[idx] = {name, alias, diet, alcohol: alc};
+  await saveFriendsBaseToFb();
+  showToast('✓ '+name+' actualizado/a');
+  renderFriendsBaseModal();
   renderFriendsBasePicker();
 }
 
 async function removeFriendFromBase(idx) {
   if(!confirm('¿Eliminar de la base?')) return;
   cachedFriendsBase.splice(idx, 1);
-  await fbDatabase.ref('spliteat/friendsBase').set(cachedFriendsBase.length ? cachedFriendsBase : null);
+  await saveFriendsBaseToFb();
   showToast('Eliminado de la base');
   renderFriendsBaseModal();
   renderFriendsBasePicker();
