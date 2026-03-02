@@ -192,10 +192,11 @@ select option { background:#1a1a24; }
         </select>
       </div>
       <div class="field" style="margin-bottom:0">
-        <label>Alcohol</label>
+        <label>Bebida</label>
         <select id="login-guest-alc">
           <option value="yes">🍺 Toma alcohol</option>
-          <option value="no">🧃 No toma</option>
+          <option value="no">🧃 No toma alcohol</option>
+          <option value="none">💧 No toma nada</option>
         </select>
       </div>
     </div>
@@ -287,9 +288,16 @@ select option { background:#1a1a24; }
       </div>
       <div class="row2">
         <div class="field"><label>Dieta</label><select id="f-diet"><option value="meat">🥩 Come carne</option><option value="veg">🥗 Vegetariano/a</option><option value="none">🚫 No come</option></select></div>
-        <div class="field"><label>Alcohol</label><select id="f-alc"><option value="yes">🍺 Toma</option><option value="no">🧃 No toma</option></select></div>
+        <div class="field"><label>Bebida</label><select id="f-alc"><option value="yes">🍺 Toma alcohol</option><option value="no">🧃 No toma alcohol</option>
+          <option value="none">💧 No toma nada</option></select></div>
       </div>
-      <button class="btn btn-primary" onclick="addFriend()">+ Agregar</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-primary" onclick="addFriend()">+ Agregar</button>
+        <label id="save-to-base-label" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--muted2);cursor:pointer">
+          <input type="checkbox" id="f-save-to-base" style="accent-color:var(--accent)">
+          Guardar en base
+        </label>
+      </div>
     </div>
     <div id="friends-list-inner"></div>
   </div>
@@ -306,7 +314,8 @@ select option { background:#1a1a24; }
             <option value="food-meat">🥩 Solo carnívoros</option>
             <option value="food-veg">🥗 Solo veggie</option>
             <option value="alcohol">🍺 Solo alcohol (incluso no comen)</option>
-            <option value="no-alcohol">🧃 Sin alcohol</option>
+            <option value="no-alcohol">🧃 No toma alcohol</option>
+          <option value="none">💧 No toma nada</option>
             <option value="all">👥 Gasto general (todos sin excepción)</option>
             <option value="tip">🤝 Propina / Bono</option>
           </select>
@@ -412,7 +421,8 @@ select option { background:#1a1a24; }
           <select id="fb-diet"><option value="meat">🥩 Carne</option><option value="veg">🥗 Veggie</option><option value="none">🚫 No come</option></select>
         </div>
         <div class="field" style="margin-bottom:0">
-          <select id="fb-alc"><option value="yes">🍺 Alcohol</option><option value="no">🧃 Sin alcohol</option></select>
+          <select id="fb-alc"><option value="yes">🍺 Toma alcohol</option><option value="no">🧃 No toma alcohol</option>
+          <option value="none">💧 No toma nada</option></select>
         </div>
       </div>
       <button class="btn btn-primary" onclick="addToFriendsBase()" style="padding:8px 14px;font-size:12px">+ Agregar a base</button>
@@ -484,7 +494,8 @@ select option { background:#1a1a24; }
     </div>
     <div class="row2">
       <div class="field"><label>Dieta</label><select id="ef-diet"><option value="meat">🥩 Come carne</option><option value="veg">🥗 Vegetariano/a</option><option value="none">🚫 No come</option></select></div>
-      <div class="field"><label>Alcohol</label><select id="ef-alc"><option value="yes">🍺 Toma</option><option value="no">🧃 No toma</option></select></div>
+      <div class="field"><label>Bebida</label><select id="ef-alc"><option value="yes">🍺 Toma alcohol</option><option value="no">🧃 No toma alcohol</option>
+          <option value="none">💧 No toma nada</option></select></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="document.getElementById('modal-edit-friend').classList.remove('open')">Cancelar</button>
@@ -528,6 +539,7 @@ function goHome() {
   stopSync();
   currentEventId=null; editingExpenseId=null;
   document.title = 'SplitEat — Dividí la cuenta';
+  if(!currentRole) { showView('view-login'); return; }
   showView('view-home'); renderHome();
 }
 
@@ -661,24 +673,46 @@ function switchInnerTab(name,btn) {
   }
   if(name==='amigos') renderFriends();
   if(name==='gastos'){ if(!editingExpenseId) renderPayerForm(null); renderExpenses(); togglePayerSection(); }
-  if(name==='amigos' && currentRole==='admin'){ renderFriendsBasePicker(); }
+  if(name==='amigos' && currentRole==='admin'){
+    renderFriendsBasePicker();
+    const lbl = document.getElementById('save-to-base-label');
+    if(lbl) lbl.style.display = 'flex';
+  }
   if(name==='resultado') renderResult();
 }
 
 // ════════════════════════════════
 // FRIENDS
 // ════════════════════════════════
-function addFriend() {
+async function addFriend() {
   const name=document.getElementById('f-name').value.trim();
   if(!name){ showToast('Ingresá un nombre'); return; }
   const ev=getEvent(currentEventId);
   if(!ev){ showToast('Error: no hay evento activo'); return; }
   const alias=document.getElementById('f-alias').value.trim();
-  ev.friends.push({id:ev.nextFriendId++,name,alias,diet:document.getElementById('f-diet').value,alcohol:document.getElementById('f-alc').value});
+  const diet=document.getElementById('f-diet').value;
+  const alc=document.getElementById('f-alc').value;
+  ev.friends.push({id:ev.nextFriendId++,name,alias,diet,alcohol:alc});
   document.getElementById('f-name').value=''; document.getElementById('f-alias').value='';
   save();
   pushEvent(getEvent(currentEventId));
-  renderFriends(); showToast('✓ '+name+' agregado/a');
+  renderFriends();
+  // Save to base if checkbox checked
+  const saveToBase = document.getElementById('f-save-to-base');
+  if(saveToBase && saveToBase.checked) {
+    await loadFriendsBase();
+    if(!cachedFriendsBase.find(f=>f.name.toLowerCase()===name.toLowerCase())) {
+      cachedFriendsBase.push({name, alias, diet, alcohol: alc});
+      await saveFriendsBaseToFb();
+      showToast('✓ '+name+' agregado/a al evento y a la base');
+    } else {
+      showToast('✓ '+name+' agregado/a');
+    }
+    saveToBase.checked = false;
+    renderFriendsBasePicker();
+  } else {
+    showToast('✓ '+name+' agregado/a');
+  }
 }
 function editFriend(id) {
   const ev=getEvent(currentEventId), f=ev.friends.find(fr=>fr.id===id);
@@ -739,7 +773,7 @@ function renderFriends() {
         <div class="friend-name">${f.name}</div>
         <div class="tags">
           ${f.diet==='veg'?'<span class="tag tag-veg">🥗 Veggie</span>':f.diet==='none'?'<span class="tag tag-noalc">🚫 No come</span>':'<span class="tag tag-meat">🥩 Carne</span>'}
-          ${f.alcohol==='yes'?'<span class="tag tag-alc">🍺 Alcohol</span>':'<span class="tag tag-noalc">🧃 Sin alcohol</span>'}
+          ${f.alcohol==='yes'?'<span class="tag tag-alc">🍺 Toma alcohol</span>':f.alcohol==='none'?'<span class="tag tag-noalc">💧 No toma nada</span>':'<span class="tag tag-noalc">🧃 No toma alcohol</span>'}
           ${f.alias?`<span class="tag tag-alias">💳 ${f.alias}</span>`:''}
         </div>
       </div>
@@ -929,7 +963,7 @@ function saveExpense() {
     if(type==='food-meat') return f.diet==='meat';
     if(type==='food-veg') return f.diet==='veg';
     if(type==='alcohol') return f.alcohol==='yes';
-    if(type==='no-alcohol') return f.alcohol==='no';
+    if(type==='no-alcohol') return f.alcohol==='no' || f.alcohol==='none';
     return true;
   }).map(f=>f.id);
   if(!applicable.length){ showToast('Ningún amigo aplica a este tipo'); return; }
@@ -1081,11 +1115,13 @@ function renderResult() {
 
   // ── PROFILE BREAKDOWN ──
   const profiles = [
-    { label: '🥩🍺 Carne + Alcohol',      filter: f => f.diet==='meat' && f.alcohol==='yes' },
-    { label: '🥩🧃 Carne sin alcohol',    filter: f => f.diet==='meat' && f.alcohol==='no'  },
-    { label: '🥗🍺 Veggie + Alcohol',     filter: f => f.diet==='veg'  && f.alcohol==='yes' },
-    { label: '🥗🧃 Veggie sin alcohol',   filter: f => f.diet==='veg'  && f.alcohol==='no'  },
-    { label: '🚫🍺 Solo toma (no come)',  filter: f => f.diet==='none' && f.alcohol==='yes' },
+    { label: '🥩🍺 Carne + Alcohol',      filter: f => f.diet==='meat' && f.alcohol==='yes'  },
+    { label: '🥩🧃 Carne sin alcohol',    filter: f => f.diet==='meat' && f.alcohol==='no'   },
+    { label: '🥩💧 Carne sin bebida',     filter: f => f.diet==='meat' && f.alcohol==='none' },
+    { label: '🥗🍺 Veggie + Alcohol',     filter: f => f.diet==='veg'  && f.alcohol==='yes'  },
+    { label: '🥗🧃 Veggie sin alcohol',   filter: f => f.diet==='veg'  && f.alcohol==='no'   },
+    { label: '🥗💧 Veggie sin bebida',    filter: f => f.diet==='veg'  && f.alcohol==='none' },
+    { label: '🚫🍺 Solo toma (no come)',  filter: f => f.diet==='none' && f.alcohol==='yes'  },
   ];
   html += '<div class="summary-card" style="margin-bottom:12px">';
   profiles.forEach(p => {
@@ -1212,11 +1248,13 @@ function exportMatrixImage() {
 
   // ── Profile breakdown data ──
   const profiles = [
-    { label: 'Carne + Alcohol',    emoji: '🥩🍺', filter: f => f.diet==='meat' && f.alcohol==='yes' },
-    { label: 'Carne sin alcohol',  emoji: '🥩🧃', filter: f => f.diet==='meat' && f.alcohol==='no'  },
-    { label: 'Veggie + Alcohol',   emoji: '🥗🍺', filter: f => f.diet==='veg'  && f.alcohol==='yes' },
-    { label: 'Veggie sin alcohol', emoji: '🥗🧃', filter: f => f.diet==='veg'  && f.alcohol==='no'  },
-    { label: 'Solo toma (no come)',emoji: '🚫🍺', filter: f => f.diet==='none' && f.alcohol==='yes' },
+    { label: 'Carne + Alcohol',    emoji: '🥩🍺', filter: f => f.diet==='meat' && f.alcohol==='yes'  },
+    { label: 'Carne sin alcohol',  emoji: '🥩🧃', filter: f => f.diet==='meat' && f.alcohol==='no'   },
+    { label: 'Carne sin bebida',   emoji: '🥩💧', filter: f => f.diet==='meat' && f.alcohol==='none' },
+    { label: 'Veggie + Alcohol',   emoji: '🥗🍺', filter: f => f.diet==='veg'  && f.alcohol==='yes'  },
+    { label: 'Veggie sin alcohol', emoji: '🥗🧃', filter: f => f.diet==='veg'  && f.alcohol==='no'   },
+    { label: 'Veggie sin bebida',  emoji: '🥗💧', filter: f => f.diet==='veg'  && f.alcohol==='none' },
+    { label: 'Solo toma (no come)',emoji: '🚫🍺', filter: f => f.diet==='none' && f.alcohol==='yes'  },
   ].filter(p => ev.friends.some(p.filter));
   const PH = 44; // height per profile row
   const PRH = profiles.length ? (20 + profiles.length * PH + 16) : 0; // total profile section height
@@ -1776,7 +1814,7 @@ function renderFriendsBaseModal() {
     return;
   }
   const dIcon = {meat:'🥩',veg:'🥗',none:'🚫'};
-  const aIcon = {yes:'🍺',no:'🧃'};
+  const aIcon = {yes:'🍺',no:'🧃',none:'💧'};
   el.innerHTML = cachedFriendsBase.map((f,i) => `
     <div id="fb-row-${i}" style="background:var(--surface2);border-radius:var(--r-sm);margin-bottom:6px;overflow:hidden">
       <div style="display:flex;align-items:center;gap:8px;padding:8px 10px">
@@ -1803,8 +1841,9 @@ function renderFriendsBaseModal() {
           </div>
           <div class="field" style="margin-bottom:0">
             <select id="fb-edit-alc-${i}">
-              <option value="yes" ${f.alcohol==='yes'?'selected':''}>🍺 Alcohol</option>
-              <option value="no"  ${f.alcohol==='no'?'selected':''}>🧃 Sin alcohol</option>
+              <option value="yes"  ${f.alcohol==='yes'?'selected':''}>🍺 Toma alcohol</option>
+              <option value="no"   ${f.alcohol==='no'?'selected':''}>🧃 No toma alcohol</option>
+              <option value="none" ${f.alcohol==='none'?'selected':''}>💧 No toma nada</option>
             </select>
           </div>
         </div>
@@ -1888,7 +1927,7 @@ async function renderFriendsBasePicker() {
   const ev = getEvent(currentEventId);
   if(!ev) return;
   const dIcon = {meat:'🥩',veg:'🥗',none:'🚫'};
-  const aIcon = {yes:'🍺',no:'🧃'};
+  const aIcon = {yes:'🍺',no:'🧃',none:'💧'};
   el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
     cachedFriendsBase.map(f => {
       const already = ev.friends.find(ef => ef.name.toLowerCase()===f.name.toLowerCase());
