@@ -238,6 +238,7 @@ select option { background:#1a1a24; }
         <div style="display:flex;gap:6px">
           <button onclick="openAccessCodeModal()" class="admin-only icon-btn" title="Cambiar código de invitados" style="font-size:13px">🔑</button>
           <button onclick="openAdminPwdModal()" class="admin-only icon-btn" title="Cambiar contraseña admin" style="font-size:13px">🔐</button>
+          <button onclick="openFriendsBaseModal()" class="admin-only icon-btn" title="Base de amigos" style="font-size:16px">👥</button>
           <button onclick="logout()" class="icon-btn" title="Cerrar sesión" style="font-size:13px">↩</button>
         </div>
       </div>
@@ -383,6 +384,33 @@ select option { background:#1a1a24; }
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ══ MODAL: FRIENDS BASE ══ -->
+<div class="modal-bg" id="modal-friends-base" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">👥 Base de amigos</div>
+    <p style="font-size:12px;color:var(--muted2);margin-bottom:12px;line-height:1.5">Lista habitual de amigos. El admin la gestiona acá y cualquiera puede agregarlos a un evento con un toque.</p>
+    <div id="friends-base-list" style="margin-bottom:12px;max-height:220px;overflow-y:auto"></div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
+      <div style="font-size:11px;font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em">+ Nuevo amigo en la base</div>
+      <div class="row2" style="margin-bottom:8px">
+        <div class="field" style="margin-bottom:0"><input type="text" id="fb-name" placeholder="Nombre" maxlength="22"></div>
+        <div class="field" style="margin-bottom:0"><input type="text" id="fb-alias" placeholder="Alias CVU" maxlength="40"></div>
+      </div>
+      <div class="row2" style="margin-bottom:8px">
+        <div class="field" style="margin-bottom:0">
+          <select id="fb-diet"><option value="meat">🥩 Carne</option><option value="veg">🥗 Veggie</option><option value="none">🚫 No come</option></select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <select id="fb-alc"><option value="yes">🍺 Alcohol</option><option value="no">🧃 Sin alcohol</option></select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addToFriendsBase()" style="padding:8px 14px;font-size:12px">+ Agregar a base</button>
+    </div>
+    <button class="btn btn-ghost" onclick="document.getElementById('modal-friends-base').classList.remove('open')">Cerrar</button>
+  </div>
+</div>
 
 <!-- ══ MODAL: ADMIN PASSWORD ══ -->
 <div class="modal-bg" id="modal-admin-pwd" onclick="if(event.target===this)this.classList.remove('open')">
@@ -624,6 +652,7 @@ function switchInnerTab(name,btn) {
   }
   if(name==='amigos') renderFriends();
   if(name==='gastos'){ if(!editingExpenseId) renderPayerForm(null); renderExpenses(); togglePayerSection(); }
+  if(name==='amigos' && currentRole==='admin'){ renderFriendsBasePicker(); }
   if(name==='resultado') renderResult();
 }
 
@@ -1692,6 +1721,120 @@ async function saveAccessCode() {
     document.getElementById('modal-access-code').classList.remove('open');
     showToast('✓ Código actualizado: ' + code);
   } catch(e) { showToast('Error al guardar','error'); }
+}
+
+// ════════════════════════════════
+// FRIENDS BASE
+// ════════════════════════════════
+let cachedFriendsBase = [];
+
+async function loadFriendsBase() {
+  try {
+    if(firebaseReady) {
+      const snap = await fbDatabase.ref('spliteat/friendsBase').get();
+      cachedFriendsBase = snap.val() ? Object.values(snap.val()) : [];
+    }
+  } catch(e) { console.warn('loadFriendsBase:', e); }
+  return cachedFriendsBase;
+}
+
+async function openFriendsBaseModal() {
+  await loadFriendsBase();
+  renderFriendsBaseModal();
+  document.getElementById('modal-friends-base').classList.add('open');
+}
+
+function renderFriendsBaseModal() {
+  const el = document.getElementById('friends-base-list');
+  if(!cachedFriendsBase.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted2);text-align:center;padding:10px 0">Base vacía — agregá amigos abajo.</div>';
+    return;
+  }
+  const dIcon = {meat:'🥩',veg:'🥗',none:'🚫'};
+  const aIcon = {yes:'🍺',no:'🧃'};
+  el.innerHTML = cachedFriendsBase.map((f,i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);margin-bottom:6px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${f.name}</div>
+        ${f.alias?`<div style="font-size:11px;color:var(--muted2)">${f.alias}</div>`:''}
+      </div>
+      <span style="font-size:14px">${dIcon[f.diet]||'🥩'}${aIcon[f.alcohol]||'🍺'}</span>
+      <button onclick="removeFriendFromBase(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0;line-height:1">×</button>
+    </div>`).join('');
+}
+
+async function addToFriendsBase() {
+  const name = document.getElementById('fb-name').value.trim();
+  if(!name) { showToast('Ingresá un nombre','error'); return; }
+  await loadFriendsBase();
+  if(cachedFriendsBase.find(f=>f.name.toLowerCase()===name.toLowerCase())) {
+    showToast('Ya está en la base','error'); return;
+  }
+  cachedFriendsBase.push({
+    name,
+    alias:   document.getElementById('fb-alias').value.trim(),
+    diet:    document.getElementById('fb-diet').value,
+    alcohol: document.getElementById('fb-alc').value
+  });
+  await fbDatabase.ref('spliteat/friendsBase').set(cachedFriendsBase);
+  document.getElementById('fb-name').value='';
+  document.getElementById('fb-alias').value='';
+  showToast('✓ '+name+' agregado/a a la base');
+  renderFriendsBaseModal();
+  // Refresh picker in friends pane if open
+  renderFriendsBasePicker();
+}
+
+async function removeFriendFromBase(idx) {
+  if(!confirm('¿Eliminar de la base?')) return;
+  cachedFriendsBase.splice(idx, 1);
+  await fbDatabase.ref('spliteat/friendsBase').set(cachedFriendsBase.length ? cachedFriendsBase : null);
+  showToast('Eliminado de la base');
+  renderFriendsBaseModal();
+  renderFriendsBasePicker();
+}
+
+async function renderFriendsBasePicker() {
+  const el = document.getElementById('friends-base-picker');
+  if(!el) return;
+  if(!cachedFriendsBase.length) await loadFriendsBase();
+  if(!cachedFriendsBase.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted2);padding:4px 0">Base vacía. Agregá amigos desde ⚙️ Gestionar base.</div>';
+    return;
+  }
+  const ev = getEvent(currentEventId);
+  if(!ev) return;
+  const dIcon = {meat:'🥩',veg:'🥗',none:'🚫'};
+  const aIcon = {yes:'🍺',no:'🧃'};
+  el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
+    cachedFriendsBase.map(f => {
+      const already = ev.friends.find(ef => ef.name.toLowerCase()===f.name.toLowerCase());
+      return `<button onclick="addFriendFromBase('${f.name}')"
+        style="display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:20px;border:1px solid ${already?'var(--border2)':'var(--accent)'};background:${already?'var(--surface2)':'rgba(184,240,80,.08)'};color:${already?'var(--muted2)':'var(--text)'};cursor:${already?'default':'pointer'};font-size:12px;font-family:'DM Sans',sans-serif;transition:all .15s" ${already?'disabled':''}>
+        <span>${f.name}</span>
+        <span style="font-size:11px">${dIcon[f.diet]||'🥩'}${aIcon[f.alcohol]||'🍺'}</span>
+        ${already?'<span style="font-size:10px;color:var(--muted2)">✓</span>':'<span style="font-size:12px;color:var(--accent)">+</span>'}
+      </button>`;
+    }).join('') + '</div>';
+}
+
+async function addFriendFromBase(name) {
+  const ev = getEvent(currentEventId);
+  if(!ev) return;
+  const already = ev.friends.find(f=>f.name.toLowerCase()===name.toLowerCase());
+  if(already) { showToast(name+' ya está en el evento'); return; }
+  const base = cachedFriendsBase.find(f=>f.name===name);
+  if(!base) return;
+  ev.friends.push({id:ev.nextFriendId++, name:base.name, alias:base.alias, diet:base.diet, alcohol:base.alcohol});
+  save();
+  pushEvent(ev);
+  renderFriends();
+  renderFriendsBasePicker(); // refresh to show ✓
+  showToast('✓ '+name+' agregado/a');
+}
+
+async function openAmigosTab() {
+  await renderFriendsBasePicker();
 }
 
 async function openAdminPwdModal() {
