@@ -1565,19 +1565,45 @@ async function loginAdmin() {
 }
 
 async function loginGuest() {
-  const code = document.getElementById('login-guest-code').value.trim().toUpperCase();
-  if(!code) { showLoginError('Ingresá el código'); return; }
+  const code   = document.getElementById('login-guest-code').value.trim().toUpperCase();
+  const gname  = document.getElementById('login-guest-name').value.trim();
+  const galias = document.getElementById('login-guest-alias').value.trim();
+  const gdiet  = document.getElementById('login-guest-diet').value;
+  const galc   = document.getElementById('login-guest-alc').value;
+
+  if(!gname)  { showLoginError('Ingresá tu nombre'); return; }
+  if(!code)   { showLoginError('Ingresá el código de acceso'); return; }
   if(!firebaseReady) { showLoginError('Error de conexión'); return; }
+
   showLoginError('Verificando…');
   try {
     const snap = await fbDatabase.ref('spliteat/accessCode').get();
     const validCode = snap.val();
     if(!validCode) { showLoginError('No hay código configurado aún. Pedíselo al admin.'); return; }
     if(code !== validCode.toUpperCase()) { showLoginError('Código incorrecto'); return; }
+
+    // Save profile
     currentRole = 'guest';
-    localStorage.setItem('spliteat_role','guest');
+    currentGuestName = gname;
+    localStorage.setItem('spliteat_role',        'guest');
+    localStorage.setItem('spliteat_guest_name',  gname);
+    localStorage.setItem('spliteat_guest_alias', galias);
+    localStorage.setItem('spliteat_guest_diet',  gdiet);
+    localStorage.setItem('spliteat_guest_alc',   galc);
+
     showLoginError('Cargando eventos…');
     await syncAllEvents();
+
+    // Auto-add guest as friend in every event
+    for(const ev of db.events) {
+      const already = ev.friends.find(f => f.name.toLowerCase() === gname.toLowerCase());
+      if(!already) {
+        ev.friends.push({id: ev.nextFriendId++, name: gname, alias: galias, diet: gdiet, alcohol: galc, isGuest: true});
+        await pushEvent(ev);
+      }
+    }
+    save();
+
     startGlobalSync();
     document.getElementById('view-login').classList.remove('active');
     showView('view-home');
