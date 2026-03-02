@@ -270,8 +270,17 @@ select option { background:#1a1a24; }
   </div>
 
   <div class="tab-pane active" id="pane-amigos">
+    <!-- Picker desde base (solo admin) -->
+    <div class="card" id="friends-from-base-card" style="display:none;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="card-label" style="margin-bottom:0">Agregar desde base</div>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="openFriendsBaseModal()">⚙️ Gestionar</button>
+      </div>
+      <div id="friends-base-picker"><div style="font-size:12px;color:var(--muted2)">Cargando…</div></div>
+    </div>
+    <!-- Form manual -->
     <div class="card">
-      <div class="card-label">Agregar amigo</div>
+      <div class="card-label">Agregar manualmente</div>
       <div class="row2">
         <div class="field"><label>Nombre</label><input type="text" id="f-name" placeholder="Ej: Martina" maxlength="22"></div>
         <div class="field"><label>Alias CVU <span style="color:var(--muted);font-weight:400">(opcional)</span></label><input type="text" id="f-alias" placeholder="mi.alias" maxlength="40"></div>
@@ -1795,6 +1804,9 @@ async function removeFriendFromBase(idx) {
 }
 
 async function renderFriendsBasePicker() {
+  if(currentRole !== 'admin') return;
+  const card = document.getElementById('friends-from-base-card');
+  if(card) card.style.display = '';
   const el = document.getElementById('friends-base-picker');
   if(!el) return;
   if(!cachedFriendsBase.length) await loadFriendsBase();
