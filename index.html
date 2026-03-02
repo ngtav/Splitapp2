@@ -293,10 +293,16 @@ select option { background:#1a1a24; }
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <button class="btn btn-primary" onclick="addFriend()">+ Agregar</button>
-        <label id="save-to-base-label" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--muted2);cursor:pointer">
-          <input type="checkbox" id="f-save-to-base" style="accent-color:var(--accent)">
-          Guardar en base
-        </label>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted2);cursor:pointer">
+            <input type="checkbox" id="f-is-venue" style="accent-color:#f0b840" onchange="toggleVenueFields()">
+            <span>🏪 Es un lugar</span>
+          </label>
+          <label id="save-to-base-label" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--muted2);cursor:pointer">
+            <input type="checkbox" id="f-save-to-base" style="accent-color:var(--accent)">
+            Guardar en base
+          </label>
+        </div>
       </div>
     </div>
     <div id="friends-list-inner"></div>
@@ -684,6 +690,14 @@ function switchInnerTab(name,btn) {
 // ════════════════════════════════
 // FRIENDS
 // ════════════════════════════════
+function toggleVenueFields() {
+  const isVenue = document.getElementById('f-is-venue').checked;
+  const dietRow = document.querySelector('#pane-amigos .row2:nth-child(3)');
+  if(dietRow) dietRow.style.display = isVenue ? 'none' : '';
+  const saveBase = document.getElementById('save-to-base-label');
+  if(saveBase) saveBase.style.display = isVenue ? 'none' : (currentRole==='admin' ? 'flex' : 'none');
+}
+
 async function addFriend() {
   const name=document.getElementById('f-name').value.trim();
   if(!name){ showToast('Ingresá un nombre'); return; }
@@ -692,7 +706,9 @@ async function addFriend() {
   const alias=document.getElementById('f-alias').value.trim();
   const diet=document.getElementById('f-diet').value;
   const alc=document.getElementById('f-alc').value;
-  ev.friends.push({id:ev.nextFriendId++,name,alias,diet,alcohol:alc});
+  const isVenue = document.getElementById('f-is-venue')?.checked || false;
+  ev.friends.push({id:ev.nextFriendId++,name,alias,diet,alcohol:alc, ...(isVenue?{isVenue:true}:{})});
+  if(isVenue) document.getElementById('f-is-venue').checked = false;
   document.getElementById('f-name').value=''; document.getElementById('f-alias').value='';
   save();
   pushEvent(getEvent(currentEventId));
@@ -930,8 +946,8 @@ function updateRemaining() {
   }
 }
 function togglePayerSection() {
-  document.getElementById('payer-field-wrapper').style.display=
-    document.getElementById('e-type').value==='tip'?'none':'';
+  const t = document.getElementById('e-type').value;
+  document.getElementById('payer-field-wrapper').style.display=(t==='tip')?'none':'';
   updateRemaining();
 }
 
@@ -957,9 +973,10 @@ function saveExpense() {
     }
   }
   const applicable=ev.friends.filter(f=>{
+    if(f.isVenue) return false; // venue never divides
     if(type==='all') return true;
     if(type==='tip') return true;
-    if(type==='food-all') return f.diet!=='none';     // "no come" excluded from food
+    if(type==='food-all') return f.diet!=='none';
     if(type==='food-meat') return f.diet==='meat';
     if(type==='food-veg') return f.diet==='veg';
     if(type==='alcohol') return f.alcohol==='yes';
@@ -1056,6 +1073,7 @@ function renderExpenses() {
 // ════════════════════════════════
 function calcResult(ev) {
   const owes={}, paid={}, rawOwes={}, tipOwes={};
+  const venueIds = new Set((ev.friends||[]).filter(f=>f.isVenue).map(f=>f.id));
   (ev.friends||[]).forEach(f=>{ owes[f.id]=0; paid[f.id]=0; rawOwes[f.id]=0; tipOwes[f.id]=0; });
   const validIds = new Set((ev.friends||[]).map(f=>f.id));
 
@@ -1065,12 +1083,15 @@ function calcResult(ev) {
     const floor = Math.floor(exact);
     const remainder = Math.round((e.amount - floor * n));
 
-    if(e.type === 'tip') {
-      // Tips have no payer — tracked separately, not part of transfer flow
+    if(e.type === 'tip' || e.type === 'venue') {
+      // Tips and venue expenses have no payer — tracked separately, not part of transfer flow
       e.applicable.filter(fid=>validIds.has(fid)).forEach((fid, idx)=>{
         const share = floor + (idx < remainder ? 1 : 0);
         tipOwes[fid] = (tipOwes[fid]||0) + share;
         rawOwes[fid] = (rawOwes[fid]||0) + share;
+        if(e.type === 'venue') {
+          venueOwes[fid] = (venueOwes[fid]||0) + share;
+        }
       });
     } else {
       e.applicable.filter(fid=>validIds.has(fid)).forEach((fid, idx)=>{
@@ -1086,6 +1107,7 @@ function calcResult(ev) {
   // Balance excludes tips — tips are owed "to the pot", not to any person
   const balance={};
   (ev.friends||[]).forEach(f=>{
+    if(f.isVenue) { balance[f.id] = Math.round(paid[f.id]||0); return; } // venue: balance = what they received
     balance[f.id] = Math.round((paid[f.id]||0)) - ((owes[f.id]||0) - (tipOwes[f.id]||0));
   });
 
@@ -1155,6 +1177,7 @@ function renderResult() {
       <div class="rp-rows">
         <div class="rp-row"><span>Le corresponde pagar</span><span>$${owes[f.id]||0}</span></div>
         ${tipOwes[f.id]>0?`<div class="rp-row"><span style="color:#f0d050">↳ incl. propina/bono</span><span style="color:#f0d050">$${tipOwes[f.id]}</span></div>`:''}
+
         <div class="rp-row"><span>Pagó</span><span>$${Math.round(paid[f.id]||0)}</span></div>
         ${aliasRow}
       </div>
@@ -1166,8 +1189,15 @@ function renderResult() {
     html+=`<div style="font-family:'Syne',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:14px 0 8px">Transferencias</div>`;
     transfers.forEach(t=>{
       const rec=ev.friends.find(f=>f.name===t.to);
-      const aliasHtml=rec?.alias?`<div style="font-size:11px;color:var(--accent2);margin-top:4px">💳 ${rec.alias}</div>`:'';
-      html+=`<div class="transfer-row"><span style="font-size:18px">💸</span><div class="transfer-txt"><div><strong>${t.from}</strong> → <strong>${t.to}</strong></div>${aliasHtml}</div><div class="transfer-amt">$${t.amount}</div></div>`;
+      const isVenueRec = rec?.isVenue;
+      const aliasHtml = isVenueRec && rec?.alias
+        ? `<div style="font-size:11px;color:#f0b840;margin-top:3px">💳 ${rec.alias}</div>`
+        : rec?.alias ? `<div style="font-size:11px;color:var(--accent2);margin-top:4px">💳 ${rec.alias}</div>` : '';
+      const icon = isVenueRec ? '🏪' : '💸';
+      const toStyle = isVenueRec ? 'color:#f0b840' : '';
+      const amtStyle = isVenueRec ? 'color:#f0b840' : '';
+      const rowStyle = isVenueRec ? 'background:rgba(255,180,0,.04);border:1px solid rgba(255,180,0,.12);border-radius:var(--r-sm);' : '';
+      html+=`<div class="transfer-row" style="${rowStyle}"><span style="font-size:18px">${icon}</span><div class="transfer-txt"><div><strong>${t.from}</strong> → <strong style="${toStyle}">${t.to}</strong></div>${aliasHtml}</div><div class="transfer-amt" style="${amtStyle}">$${t.amount}</div></div>`;
     });
   }
   el.innerHTML=html;
